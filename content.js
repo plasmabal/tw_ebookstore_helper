@@ -21,8 +21,14 @@
   }
 
   function updateCache(res) {
-    cachedBlacklist.publisher = (res.publisherBlacklist || []).map(s => s.trim());
-    cachedBlacklist.author = (res.authorBlacklist || []).map(s => s.trim());
+    const migrate = (list) => {
+      if (list.length > 0 && typeof list[0] === 'string') {
+        return list; // Old format is already strings
+      }
+      return list.map(item => item.name); // New format is objects
+    };
+    cachedBlacklist.publisher = migrate(res.publisherBlacklist || []).map(s => s.trim());
+    cachedBlacklist.author = migrate(res.authorBlacklist || []).map(s => s.trim());
   }
 
   function injectPriceInfo() {

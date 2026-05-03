@@ -12,18 +12,24 @@
   <div class="container">
     <div class="section">
       <h2>🏢 出版社黑名單</h2>
-      <div class="input-group">
-        <input type="text" id="pub-input" placeholder="輸入出版社完整名稱...">
-        <button id="add-pub">新增</button>
+      <div class="input-container">
+        <div class="input-group">
+          <input type="text" id="pub-input" placeholder="名稱 (必填)...">
+          <textarea id="pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+          <button id="add-pub">新增</button>
+        </div>
       </div>
       <ul id="pub-list" class="list"></ul>
     </div>
 
     <div class="section">
       <h2>✍️ 作者/譯者黑名單</h2>
-      <div class="input-group">
-        <input type="text" id="author-input" placeholder="輸入作者完整名稱...">
-        <button id="add-author">新增</button>
+      <div class="input-container">
+        <div class="input-group">
+          <input type="text" id="author-input" placeholder="名稱 (必填)...">
+          <textarea id="author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+          <button id="add-author">新增</button>
+        </div>
       </div>
       <ul id="author-list" class="list"></ul>
     </div>
