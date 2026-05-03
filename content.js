@@ -18,19 +18,15 @@
     const pointsNeeded = Math.ceil(price / maxPricePerToken);
     const tokenCost = pointsNeeded * costPerToken;
 
-    const useToken = tokenCost < (price * 0.75);
+    const useToken = tokenCost < discount75;
     
     const helperSpan = document.createElement('span');
     helperSpan.className = 'teh-helper-info';
     
-    let text = ` (75折: ${discount75}`;
-    if (useToken) {
-      text += ` | 買法: ${pointsNeeded} 點領書)`;
-    } else {
-      text += ` | 買法: 75折)`;
-    }
+    const v75 = useToken ? "" : "✅ ";
+    const vToken = useToken ? "✅ " : "";
     
-    helperSpan.innerText = text;
+    helperSpan.innerText = ` (${v75}75折: ${discount75} | ${vToken}領書 ${pointsNeeded} 點)`;
     info.container.appendChild(helperSpan);
   }
 
