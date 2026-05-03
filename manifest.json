@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Taiwan Ebookstore Helper",
+  "version": "0.1.0",
+  "description": "提供台灣電子書商網站的便利功能，包含 Readmoo 折扣計算與領書額度建議。",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://readmoo.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://readmoo.com/book/*"
+      ],
+      "js": [
+        "sites.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
