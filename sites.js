@@ -4,13 +4,11 @@
       name: "Readmoo",
       detect: (host) => host === "readmoo.com",
       getPriceInfo: (doc) => {
-        // Find all price blocks
         const priceBlocks = doc.querySelectorAll('.price');
         let ebookPrice = null;
         let container = null;
         let isSale = false;
 
-        // 1. Try to find 電子書特價 first (the one the user actually pays)
         for (const el of priceBlocks) {
           if (el.innerText.includes('電子書特價')) {
             const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
@@ -23,13 +21,10 @@
           }
         }
 
-        // 2. If no特價, look for 電子書售價
         if (!ebookPrice) {
           for (const el of priceBlocks) {
             if (el.innerText.includes('電子書售價')) {
-              // If there's a <del> inside, it's not the final price (there should be a 特價 somewhere)
               if (el.querySelector('del')) continue;
-
               const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
               if (priceElem) {
                 ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10);
@@ -41,19 +36,59 @@
         }
 
         if (!ebookPrice) return null;
-
-        return {
-          price: ebookPrice,
-          isSale,
-          container
-        };
+        return { price: ebookPrice, isSale, container };
       },
       getBlacklistTargets: (doc) => {
-        const metadata = doc.querySelector('.book-metadata') || doc.querySelector('.book-info');
+        const path = window.location.pathname;
+
+        // 詳情頁模式 (URL 包含 /book/)
+        if (path.match(/\/book\/\d+/)) {
+          return {
+            blocks: [
+              {
+                selector: 'body',
+                elements: (b) => ({
+                  publishers: Array.from(b.querySelectorAll('a[href*="/publisher/"], [itemprop="publisher"] a')),
+                  authors: Array.from(b.querySelectorAll('a[href*="/contributor/"], [itemprop="author"] a')),
+                  title: b.querySelector('h1[itemprop="name"], .book-title')
+                })
+              }
+            ]
+          };
+        }
+
+        // 出版社頁模式 (URL 包含 /publisher/)
+        if (path.match(/\/publisher\/\d+/)) {
+          return {
+            global: {
+              // 廣泛抓取標題，確保出版社大標題能被打叉
+              publishers: Array.from(doc.querySelectorAll('h1.publisher-name, .publisher-name, .publisher-header h1, h1'))
+            },
+            blocks: [
+              {
+                selector: '.listItem-box, .rm-ct-listItem .listItem-box',
+                elements: (b) => ({
+                  publishers: Array.from(b.querySelectorAll('.publisher-info a, a[href*="/publisher/"]')),
+                  authors: Array.from(b.querySelectorAll('.contributor-info a, .author a, a[href*="/contributor/"]')),
+                  title: b.querySelector('h4 a, .title a, [itemprop="name"]')
+                })
+              }
+            ]
+          };
+        }
+
+        // 首頁與其他列表頁
         return {
-          publishers: Array.from(doc.querySelectorAll('a[href*="/search/publisher/"], a[href*="/publisher/"], [itemprop="publisher"] a')),
-          authors: Array.from(doc.querySelectorAll('a[href*="/search/contributor/"], a[href*="/contributor/"], [itemprop="author"] a')),
-          title: doc.querySelector('h1[itemprop="name"]') || doc.querySelector('.book-title')
+          blocks: [
+            {
+              selector: '.listItem-box, .collection-slide .listItem-box',
+              elements: (b) => ({
+                publishers: Array.from(b.querySelectorAll('.publisher-info a, a[href*="/publisher/"]')),
+                authors: Array.from(b.querySelectorAll('.contributor-info a, .author a, a[href*="/contributor/"], .author a')),
+                title: b.querySelector('h4 a, .title a, .caption h4 a, [itemprop="name"]')
+              })
+            }
+          ]
         };
       }
     }

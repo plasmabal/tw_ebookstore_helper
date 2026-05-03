@@ -26,13 +26,17 @@
 }
 
 /* 黑名單書名變淡效果 */
-.teh-blacklisted-title {
+.teh-blacklisted-title,
+.teh-blacklisted-title a,
+.teh-blacklisted-title span {
   color: #ccc !important;
-  text-decoration: line-through;
+  text-decoration: line-through !important;
   transition: color 0.3s;
 }
 
-.teh-blacklisted-title:hover {
+.teh-blacklisted-title:hover,
+.teh-blacklisted-title:hover a,
+.teh-blacklisted-title:hover span {
   color: #999 !important;
 }
 
