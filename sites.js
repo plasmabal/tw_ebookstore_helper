@@ -29,7 +29,7 @@
             if (el.innerText.includes('電子書售價')) {
               // If there's a <del> inside, it's not the final price (there should be a 特價 somewhere)
               if (el.querySelector('del')) continue;
-              
+
               const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
               if (priceElem) {
                 ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10);
@@ -46,6 +46,14 @@
           price: ebookPrice,
           isSale,
           container
+        };
+      },
+      getBlacklistTargets: (doc) => {
+        const metadata = doc.querySelector('.book-metadata') || doc.querySelector('.book-info');
+        return {
+          publishers: Array.from(doc.querySelectorAll('a[href*="/search/publisher/"], a[href*="/publisher/"], [itemprop="publisher"] a')),
+          authors: Array.from(doc.querySelectorAll('a[href*="/search/contributor/"], a[href*="/contributor/"], [itemprop="author"] a')),
+          title: doc.querySelector('h1[itemprop="name"]') || doc.querySelector('.book-title')
         };
       }
     }
