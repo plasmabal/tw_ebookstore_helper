@@ -5,14 +5,24 @@ const authorNote = document.getElementById('author-note');
 const pubList = document.getElementById('pub-list');
 const authorList = document.getElementById('author-list');
 
+// Whitelist elements
+const whitePubInput = document.getElementById('white-pub-input');
+const whitePubNote = document.getElementById('white-pub-note');
+const whiteAuthorInput = document.getElementById('white-author-input');
+const whiteAuthorNote = document.getElementById('white-author-note');
+const whitePubList = document.getElementById('white-pub-list');
+const whiteAuthorList = document.getElementById('white-author-list');
+
 // Load data with migration support
 function loadSettings() {
-  chrome.storage.local.get(['publisherBlacklist', 'authorBlacklist'], (res) => {
-    const publishers = migrateData(res.publisherBlacklist || []);
-    const authors = migrateData(res.authorBlacklist || []);
-
-    renderList(pubList, publishers, 'publisherBlacklist');
-    renderList(authorList, authors, 'authorBlacklist');
+  chrome.storage.local.get([
+    'publisherBlacklist', 'authorBlacklist',
+    'publisherWhitelist', 'authorWhitelist'
+  ], (res) => {
+    renderList(pubList, migrateData(res.publisherBlacklist || []), 'publisherBlacklist');
+    renderList(authorList, migrateData(res.authorBlacklist || []), 'authorBlacklist');
+    renderList(whitePubList, migrateData(res.publisherWhitelist || []), 'publisherWhitelist');
+    renderList(whiteAuthorList, migrateData(res.authorWhitelist || []), 'authorWhitelist');
   });
 }
 
@@ -58,48 +68,34 @@ function renderList(container, items, storageKey) {
   });
 }
 
-document.getElementById('add-pub').onclick = () => addPub();
-pubInput.onkeypress = (e) => { if (e.key === 'Enter') addPub(); };
-pubNote.onkeypress = (e) => { if (e.key === 'Enter') addPub(); };
+// Bind handlers
+function setupHandlers(input, note, button, storageKey) {
+  button.onclick = () => addItem(input, note, storageKey);
+  input.onkeypress = (e) => { if (e.key === 'Enter') addItem(input, note, storageKey); };
+  note.onkeypress = (e) => { if (e.key === 'Enter') addItem(input, note, storageKey); };
+}
 
-function addPub() {
-  const name = pubInput.value.trim();
-  const note = pubNote.value.trim();
+function addItem(input, note, storageKey) {
+  const name = input.value.trim();
+  const noteVal = note.value.trim();
   if (!name) return;
 
-  chrome.storage.local.get(['publisherBlacklist'], (res) => {
-    const list = migrateData(res.publisherBlacklist || []);
+  chrome.storage.local.get([storageKey], (res) => {
+    const list = migrateData(res[storageKey] || []);
     if (!list.some(i => i.name === name)) {
-      list.push({ name, note });
-      chrome.storage.local.set({ publisherBlacklist: list }, () => {
-        pubInput.value = '';
-        pubNote.value = '';
+      list.push({ name, note: noteVal });
+      chrome.storage.local.set({ [storageKey]: list }, () => {
+        input.value = '';
+        note.value = '';
         loadSettings();
       });
     }
   });
 }
 
-document.getElementById('add-author').onclick = () => addAuthor();
-authorInput.onkeypress = (e) => { if (e.key === 'Enter') addAuthor(); };
-authorNote.onkeypress = (e) => { if (e.key === 'Enter') addAuthor(); };
-
-function addAuthor() {
-  const name = authorInput.value.trim();
-  const note = authorNote.value.trim();
-  if (!name) return;
-
-  chrome.storage.local.get(['authorBlacklist'], (res) => {
-    const list = migrateData(res.authorBlacklist || []);
-    if (!list.some(i => i.name === name)) {
-      list.push({ name, note });
-      chrome.storage.local.set({ authorBlacklist: list }, () => {
-        authorInput.value = '';
-        authorNote.value = '';
-        loadSettings();
-      });
-    }
-  });
-}
+setupHandlers(pubInput, pubNote, document.getElementById('add-pub'), 'publisherBlacklist');
+setupHandlers(authorInput, authorNote, document.getElementById('add-author'), 'authorBlacklist');
+setupHandlers(whitePubInput, whitePubNote, document.getElementById('add-white-pub'), 'publisherWhitelist');
+setupHandlers(whiteAuthorInput, whiteAuthorNote, document.getElementById('add-white-author'), 'authorWhitelist');
 
 loadSettings();

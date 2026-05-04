@@ -6,32 +6,68 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <h1>⚙️ 黑名單管理</h1>
-  <p class="description">在此新增您想要過濾的出版社或作者。符合名單的書籍將會在網頁上打叉並變暗。</p>
+  <h1>⚙️ 名單管理</h1>
+  <p class="description">在此新增您想要過濾或突顯的出版社或作者。</p>
 
   <div class="container">
-    <div class="section">
-      <h2>🏢 出版社黑名單</h2>
-      <div class="input-container">
-        <div class="input-group">
-          <input type="text" id="pub-input" placeholder="名稱 (必填)...">
-          <textarea id="pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-          <button id="add-pub">新增</button>
+    <!-- 黑名單區塊 -->
+    <div class="column">
+      <div class="section blacklist">
+        <h2>🚫 黑名單 (過濾)</h2>
+        <div class="sub-section">
+          <h3>🏢 出版社</h3>
+          <div class="input-container">
+            <div class="input-group">
+              <input type="text" id="pub-input" placeholder="名稱 (必填)...">
+              <textarea id="pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+              <button id="add-pub">新增</button>
+            </div>
+          </div>
+          <ul id="pub-list" class="list"></ul>
+        </div>
+
+        <div class="sub-section">
+          <h3>✍️ 作者/譯者</h3>
+          <div class="input-container">
+            <div class="input-group">
+              <input type="text" id="author-input" placeholder="名稱 (必填)...">
+              <textarea id="author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+              <button id="add-author">新增</button>
+            </div>
+          </div>
+          <ul id="author-list" class="list"></ul>
         </div>
       </div>
-      <ul id="pub-list" class="list"></ul>
     </div>
 
-    <div class="section">
-      <h2>✍️ 作者/譯者黑名單</h2>
-      <div class="input-container">
-        <div class="input-group">
-          <input type="text" id="author-input" placeholder="名稱 (必填)...">
-          <textarea id="author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-          <button id="add-author">新增</button>
+    <!-- 優良名單區塊 -->
+    <div class="column">
+      <div class="section whitelist">
+        <h2>✅ 優良名單 (突顯)</h2>
+        <div class="sub-section">
+          <h3>🏢 出版社</h3>
+          <div class="input-container">
+            <div class="input-group">
+              <input type="text" id="white-pub-input" placeholder="名稱 (必填)...">
+              <textarea id="white-pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+              <button id="add-white-pub">新增</button>
+            </div>
+          </div>
+          <ul id="white-pub-list" class="list"></ul>
+        </div>
+
+        <div class="sub-section">
+          <h3>✍️ 作者/譯者</h3>
+          <div class="input-container">
+            <div class="input-group">
+              <input type="text" id="white-author-input" placeholder="名稱 (必填)...">
+              <textarea id="white-author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+              <button id="add-white-author">新增</button>
+            </div>
+          </div>
+          <ul id="white-author-list" class="list"></ul>
         </div>
       </div>
-      <ul id="author-list" class="list"></ul>
     </div>
   </div>
 

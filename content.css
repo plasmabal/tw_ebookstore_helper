@@ -40,3 +40,22 @@
   color: #999 !important;
 }
 
+/* 優良名單突顯效果 (長橢圓背景) */
+.teh-whitelisted-text {
+  position: relative;
+  display: inline-block;
+  background-color: #4caf50 !important; /* Green 500 */
+  color: #ffffff !important;
+  padding: 2px 12px !important;
+  border-radius: 20px;
+  text-decoration: none !important;
+}
+
+/* 確保容器內的所有文字與連結都變成白色 */
+.teh-whitelisted-text,
+.teh-whitelisted-text a,
+.teh-whitelisted-text span,
+.teh-whitelisted-text i {
+  color: #ffffff !important;
+}
+

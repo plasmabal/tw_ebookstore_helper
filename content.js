@@ -2,18 +2,27 @@
   const site = window.TEH?.findSite();
   if (!site) return;
 
-  let cachedBlacklist = { publisher: [], author: [] };
+  let cachedLists = {
+    black: { publisher: [], author: [] },
+    white: { publisher: [], author: [] }
+  };
 
   // 初始化名單並監聽變動
   function initStorage() {
-    chrome.storage.local.get(['publisherBlacklist', 'authorBlacklist'], (res) => {
+    chrome.storage.local.get([
+      'publisherBlacklist', 'authorBlacklist',
+      'publisherWhitelist', 'authorWhitelist'
+    ], (res) => {
       if (chrome.runtime.lastError) return;
       updateCache(res);
       run(); // 初始執行
     });
 
-    chrome.storage.onChanged.addListener((changes) => {
-      chrome.storage.local.get(['publisherBlacklist', 'authorBlacklist'], (res) => {
+    chrome.storage.onChanged.addListener(() => {
+      chrome.storage.local.get([
+        'publisherBlacklist', 'authorBlacklist',
+        'publisherWhitelist', 'authorWhitelist'
+      ], (res) => {
         updateCache(res);
         run();
       });
@@ -22,13 +31,15 @@
 
   function updateCache(res) {
     const migrate = (list) => {
-      if (list.length > 0 && typeof list[0] === 'string') {
-        return list; // Old format is already strings
-      }
-      return list.map(item => item.name); // New format is objects
+      if (!list || list.length === 0) return [];
+      if (typeof list[0] === 'string') return list.map(s => s.trim());
+      return list.map(item => item.name.trim());
     };
-    cachedBlacklist.publisher = migrate(res.publisherBlacklist || []).map(s => s.trim());
-    cachedBlacklist.author = migrate(res.authorBlacklist || []).map(s => s.trim());
+
+    cachedLists.black.publisher = migrate(res.publisherBlacklist);
+    cachedLists.black.author = migrate(res.authorBlacklist);
+    cachedLists.white.publisher = migrate(res.publisherWhitelist);
+    cachedLists.white.author = migrate(res.authorWhitelist);
   }
 
   function injectPriceInfo() {
@@ -57,13 +68,11 @@
     } catch (e) {}
   }
 
-  function checkBlacklist() {
+  function checkLists() {
     try {
       if (!chrome.runtime?.id) return;
       if (!site.getBlacklistTargets) return;
 
-      const pubBlacklist = cachedBlacklist.publisher;
-      const authorBlacklist = cachedBlacklist.author;
       const targets = site.getBlacklistTargets(document);
 
       // 1. 處理頁面層級 (Global)
@@ -76,11 +85,7 @@
               .join("")
               .trim();
 
-            if (text && pubBlacklist.includes(text)) {
-              el.classList.add('teh-blacklisted-text');
-            } else {
-              el.classList.remove('teh-blacklisted-text');
-            }
+            applyStyles(el, text, 'publisher');
           });
         }
       }
@@ -96,24 +101,14 @@
             if (els.publishers) {
               els.publishers.forEach(el => {
                 const text = el.innerText.trim();
-                if (text && pubBlacklist.includes(text)) {
-                  el.classList.add('teh-blacklisted-text');
-                  isAnyBlacklisted = true;
-                } else {
-                  el.classList.remove('teh-blacklisted-text');
-                }
+                if (applyStyles(el, text, 'publisher')) isAnyBlacklisted = true;
               });
             }
 
             if (els.authors) {
               els.authors.forEach(el => {
                 const text = el.innerText.trim();
-                if (text && authorBlacklist.includes(text)) {
-                  el.classList.add('teh-blacklisted-text');
-                  isAnyBlacklisted = true;
-                } else {
-                  el.classList.remove('teh-blacklisted-text');
-                }
+                if (applyStyles(el, text, 'author')) isAnyBlacklisted = true;
               });
             }
 
@@ -130,13 +125,35 @@
     } catch (e) {}
   }
 
+  // 回傳是否被列入黑名單 (統一使用容器標記法)
+  function applyStyles(el, text, type) {
+    if (!text) return false;
+
+    // 優先檢查黑名單
+    if (cachedLists.black[type].includes(text)) {
+      el.classList.add('teh-blacklisted-text');
+      el.classList.remove('teh-whitelisted-text');
+      return true;
+    }
+
+    el.classList.remove('teh-blacklisted-text');
+
+    // 檢查優良名單
+    if (cachedLists.white[type].includes(text)) {
+      el.classList.add('teh-whitelisted-text');
+    } else {
+      el.classList.remove('teh-whitelisted-text');
+    }
+
+    return false;
+  }
+
   let timeout = null;
   function run() {
     injectPriceInfo();
-    checkBlacklist();
+    checkLists();
   }
 
-  // 啟動流程
   initStorage();
 
   const observer = new MutationObserver(() => {

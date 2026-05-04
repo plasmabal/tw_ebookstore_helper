@@ -7,18 +7,30 @@ body {
   margin: 0 auto;
 }
 
-h1 { border-bottom: 2px solid #e44d26; padding-bottom: 10px; color: #e44d26; }
-h2 { font-size: 1.2em; margin-top: 20px; }
+h1 { border-bottom: 2px solid #555; padding-bottom: 10px; color: #333; }
+h2 { font-size: 1.3em; margin-bottom: 15px; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+h3 { font-size: 1.1em; margin: 15px 0 10px 0; color: #555; }
 .description { color: #666; margin-bottom: 30px; }
 
-.container { display: flex; gap: 40px; }
-.section { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.container { display: flex; gap: 30px; align-items: flex-start; }
+.column { flex: 1; }
+.section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+.section.blacklist h2 { color: #e44d26; border-bottom-color: #fcece8; }
+.section.whitelist h2 { color: #28a745; border-bottom-color: #e8f5e9; }
+
+.sub-section { margin-bottom: 25px; }
+.sub-section:last-child { margin-bottom: 0; }
 
 .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
 input, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 0.95em; }
 textarea { resize: vertical; min-height: 60px; }
-button { padding: 10px 15px; background: #f06a4d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; }
-button:hover { background: #e44d26; }
+button { padding: 10px 15px; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+
+.blacklist button { background: #f06a4d; }
+.blacklist button:hover { background: #e44d26; }
+.whitelist button { background: #28a745; }
+.whitelist button:hover { background: #218838; }
 
 .list { list-style: none; padding: 0; }
 .list li {
