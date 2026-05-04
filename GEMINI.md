@@ -15,7 +15,26 @@
 ## 3. 程式碼品質與格式
 *   **Trailing Spaces**：所有檔案嚴禁保留行尾多餘空白（Trailing spaces）。請在提交前確認清理乾淨。
 
-## 6. 測試與驗證 (Testing & Verification)
+## 4. Git 與協作流程 (Review 階段的 Stage 策略)
+*   **首次大功能提交**：大功能初步實作完成後，應直接將所有變更放入 Stage（`git add .`）。這能方便開發人員明確看出新增或刪除了哪些檔案，而不會被 Untracked 檔案混淆。
+*   **後續微調提交**：在核心功能已 Stage 的情況下，根據開發人員回饋進行的後續微調或修正，**不應**立即放入 Stage。這樣能讓開發人員使用 `git diff` 清楚觀察到這一次的微調到底改了哪些具體的程式碼，方便進行增量審視。
+
+## 5. 擴充功能效能與安全 (Performance & Security)
+*   **記憶體快取 (In-memory Caching)**：為了避免在頻繁變動的網頁（如動態捲動列表）中產生過高的效能開銷，應將 `chrome.storage` 的資料快取在腳本的全域變數中。在進行 DOM 比對時，優先使用快取資料。
+*   **實時同步 (Real-time Sync)**：利用 `chrome.storage.onChanged` 監聽設定變動。這樣當使用者在選項頁面修改設定時，已開啟的分頁能立即反應，無需重新整理頁面。
+*   **安全文字處理**：插入使用者定義的內容（如黑名單名稱）時，**嚴禁**使用 `.innerHTML`。必須使用 `.textContent` 或 `.innerText` 以徹底杜絕 XSS 攻擊風險。
+*   **腳本生命週期管理**：在呼叫 `chrome.*` API 前，應檢查 `chrome.runtime?.id` 是否存在。這能有效防止因擴充功能更新或重載導致「Extension context invalidated」的錯誤。
+*   **Debounce 機制**：處理動態網頁變動（MutationObserver）時，必須搭配至少 300ms 的 `setTimeout` (Debounce)，避免短時間內執行過多次昂貴的 DOM 掃描與比對。
+
+## 6. 高階架構模式 (Advanced Patterns)
+*   **側邊欄導覽佈局 (Sidebar Navigation)**：當設定項超過 3 個類別時，應改採側邊欄導覽。側邊欄應包含「即時計數泡泡」，主區域則應保留最大寬度以利多行備註輸入。
+*   **佈局穩定性優先 (Layout Stability First)**：
+    *   在處理如出版社標題等複雜 DOM 時，**嚴禁搬移或替換節點**。
+    *   應優先在父容器加上標記類別（如 `.teh-blacklisted-text`），並利用 CSS 背景色或偽元素進行視覺處理，以 100% 維持原網頁的佈局順序。
+*   **向下相容的資料遷移 (Data Migration)**：當儲存格式從簡單類型（如 String）演進為複雜類型（如 Object）時，必須在 `options.js` 與 `content.js` 中實作 `migrateData` 函數，確保舊版資料在載入時能自動無痛轉換。
+*   **跨分頁狀態同步**：應全面利用 `chrome.storage.onChanged` 達成設定頁面與內容劇本間的實時連動。包含計數器更新與視覺樣式切換，均應在不重新整理頁面的前提下完成。
+
+## 7. 測試與驗證 (Testing & Verification)
 為了確保後續開發不影響現有功能，應定期使用以下 URL 進行回歸測試：
 
 *   **書籍詳情頁 (價格試算與黑名單)**:
@@ -30,5 +49,3 @@
 *   **黑名單管理頁面 (Options)**:
     *   URL: 在 Chrome 擴充功能管理介面點擊「選項」或點擊 popup 齒輪。
     *   驗證重點：確認輸入框 Enter 鍵有效；確認新增/刪除操作能立即反映到已開啟的網頁分頁中。
-
-
