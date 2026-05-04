@@ -5,6 +5,96 @@
   font-size: 0.9em;
 }
 
+/* 最佳購買法組件樣式 */
+.teh-price-helper-container {
+  display: inline-block;
+  position: relative;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.teh-best-option-btn {
+  background-color: #4caf50;
+  color: #ffffff;
+  padding: 2px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  user-select: none;
+  border: none;
+}
+
+.teh-best-option-btn:hover {
+  background-color: #43a047;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.teh-best-option-btn .teh-arrow {
+  margin-left: 5px;
+  font-size: 0.8em;
+  transition: transform 0.3s;
+}
+
+.teh-price-helper-container.teh-active .teh-arrow {
+  transform: rotate(180deg);
+}
+
+.teh-price-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  z-index: 10000;
+  min-width: 160px;
+  display: none;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.teh-price-helper-container.teh-active .teh-price-dropdown {
+  display: block;
+  animation: teh-fade-in 0.2s ease-out;
+}
+
+.teh-price-dropdown ul {
+  list-style: none;
+  padding: 4px 0;
+  margin: 0;
+}
+
+.teh-price-dropdown li {
+  padding: 8px 16px;
+  font-size: 0.9em;
+  color: #333;
+  white-space: nowrap;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.teh-price-dropdown li:last-child {
+  border-bottom: none;
+}
+
+.teh-price-dropdown li:hover {
+  background-color: #f9f9f9;
+}
+
+.teh-price-dropdown li.teh-is-best {
+  color: #4caf50;
+  font-weight: bold;
+  background-color: #f1f8e9;
+}
+
+@keyframes teh-fade-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* 黑名單文字打叉效果 */
 .teh-blacklisted-text {
   position: relative;

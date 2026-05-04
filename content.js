@@ -47,26 +47,74 @@
       if (!chrome.runtime?.id) return;
       const info = site.getPriceInfo(document);
       if (!info || !info.container) return;
-      if (info.container.querySelector('.teh-helper-info')) return;
+      if (info.container.querySelector('.teh-price-helper-container')) return;
 
       const price = info.price;
-      const discount75 = Math.round(price * 0.75);
       const costPerToken = 167;
       const maxPricePerToken = 250;
       const pointsNeeded = Math.ceil(price / maxPricePerToken);
       const tokenCost = pointsNeeded * costPerToken;
 
-      const useToken = tokenCost < discount75;
-      const helperSpan = document.createElement('span');
-      helperSpan.className = 'teh-helper-info';
+      // 定義所有折扣選項
+      const options = [
+        { id: 'd75', label: '75折', cost: Math.round(price * 0.75), display: `75折: ${Math.round(price * 0.75)}` },
+        { id: 'd80', label: '8折', cost: Math.round(price * 0.80), display: `8折: ${Math.round(price * 0.80)}` },
+        { id: 'm50', label: '-50', cost: Math.max(0, price - 50), display: `-50: ${Math.max(0, price - 50)}` },
+        { id: 'token', label: `領書額度 ${pointsNeeded} 點`, cost: tokenCost, display: `領書額度 ${pointsNeeded} 點` }
+      ];
 
-      const v75 = useToken ? "" : "✅ ";
-      const vToken = useToken ? "✅ " : "";
+      // 找出最划算的選項 (cost 最低者)
+      const bestOption = options.reduce((prev, curr) => (prev.cost <= curr.cost ? prev : curr));
 
-      helperSpan.innerText = ` (${v75}75折: ${discount75} | ${vToken}領書 ${pointsNeeded} 點)`;
-      info.container.appendChild(helperSpan);
-    } catch (e) {}
+      // 建立組件
+      const container = document.createElement('div');
+      container.className = 'teh-price-helper-container';
+
+      const button = document.createElement('button');
+      button.className = 'teh-best-option-btn';
+      button.innerHTML = `${bestOption.label} <span class="teh-arrow">▼</span>`;
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'teh-price-dropdown';
+      const ul = document.createElement('ul');
+
+      options.forEach(opt => {
+        const li = document.createElement('li');
+        li.textContent = opt.display;
+        if (opt.id === bestOption.id) {
+          li.classList.add('teh-is-best');
+          li.textContent += ' (最佳)';
+        }
+        ul.appendChild(li);
+      });
+
+      dropdown.appendChild(ul);
+      container.appendChild(button);
+      container.appendChild(dropdown);
+
+      // 點擊事件
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isActive = container.classList.contains('teh-active');
+        // 先關閉頁面上其他的選單
+        document.querySelectorAll('.teh-price-helper-container').forEach(el => el.classList.remove('teh-active'));
+        if (!isActive) {
+          container.classList.add('teh-active');
+        }
+      });
+
+      info.container.appendChild(container);
+    } catch (e) {
+      console.error("[TEH] Price injection error:", e);
+    }
   }
+
+  // 點擊外部關閉選單
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.teh-price-helper-container.teh-active').forEach(el => {
+      el.classList.remove('teh-active');
+    });
+  });
 
   function checkLists() {
     try {
