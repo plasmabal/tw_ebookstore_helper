@@ -6,69 +6,103 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <h1>⚙️ 名單管理</h1>
-  <p class="description">在此新增您想要過濾或突顯的出版社或作者。</p>
-
-  <div class="container">
-    <!-- 黑名單區塊 -->
-    <div class="column">
-      <div class="section blacklist">
-        <h2>🚫 黑名單 (過濾)</h2>
-        <div class="sub-section">
-          <h3>🏢 出版社</h3>
-          <div class="input-container">
-            <div class="input-group">
-              <input type="text" id="pub-input" placeholder="名稱 (必填)...">
-              <textarea id="pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-              <button id="add-pub">新增</button>
-            </div>
-          </div>
-          <ul id="pub-list" class="list"></ul>
-        </div>
-
-        <div class="sub-section">
-          <h3>✍️ 作者/譯者</h3>
-          <div class="input-container">
-            <div class="input-group">
-              <input type="text" id="author-input" placeholder="名稱 (必填)...">
-              <textarea id="author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-              <button id="add-author">新增</button>
-            </div>
-          </div>
-          <ul id="author-list" class="list"></ul>
-        </div>
+  <div class="app-container">
+    <!-- 側邊導覽列 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>⚙️ 小幫手設定</h1>
       </div>
-    </div>
-
-    <!-- 優良名單區塊 -->
-    <div class="column">
-      <div class="section whitelist">
-        <h2>✅ 優良名單 (突顯)</h2>
-        <div class="sub-section">
-          <h3>🏢 出版社</h3>
-          <div class="input-container">
-            <div class="input-group">
-              <input type="text" id="white-pub-input" placeholder="名稱 (必填)...">
-              <textarea id="white-pub-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-              <button id="add-white-pub">新增</button>
-            </div>
-          </div>
-          <ul id="white-pub-list" class="list"></ul>
+      <nav class="sidebar-nav">
+        <div class="nav-group">
+          <div class="nav-group-title">🚫 黑名單 (過濾)</div>
+          <button class="nav-item active" data-target="section-pub-black">
+            🏢 出版社 <span class="count" id="count-pub-black">0</span>
+          </button>
+          <button class="nav-item" data-target="section-author-black">
+            ✍️ 作者/譯者 <span class="count" id="count-author-black">0</span>
+          </button>
         </div>
-
-        <div class="sub-section">
-          <h3>✍️ 作者/譯者</h3>
-          <div class="input-container">
-            <div class="input-group">
-              <input type="text" id="white-author-input" placeholder="名稱 (必填)...">
-              <textarea id="white-author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
-              <button id="add-white-author">新增</button>
-            </div>
-          </div>
-          <ul id="white-author-list" class="list"></ul>
+        <div class="nav-group">
+          <div class="nav-group-title">✅ 優良名單 (突顯)</div>
+          <button class="nav-item" data-target="section-pub-white">
+            🏢 出版社 <span class="count" id="count-pub-white">0</span>
+          </button>
+          <button class="nav-item" data-target="section-author-white">
+            ✍️ 作者/譯者 <span class="count" id="count-author-white">0</span>
+          </button>
         </div>
+      </nav>
+      <div class="sidebar-footer">
+        <p class="version">v0.1.0</p>
       </div>
-    </div>
+    </aside>
+
+    <!-- 主要內容區 -->
+    <main class="main-content">
+      <!-- 出版社黑名單 -->
+      <section id="section-pub-black" class="config-section active">
+        <header class="section-header">
+          <h2>🚫 出版社黑名單</h2>
+          <p class="description">符合此名單的出版社，書籍名稱將會變淡並加上刪除線。</p>
+        </header>
+        <div class="input-card">
+          <div class="input-group">
+            <input type="text" id="pub-input" placeholder="名稱 (必填)...">
+            <textarea id="pub-note" placeholder="為什麼要過濾這家出版社？(選填，支援多行)..." rows="3"></textarea>
+            <button id="add-pub" class="btn-add btn-black">新增至黑名單</button>
+          </div>
+        </div>
+        <ul id="pub-list" class="list"></ul>
+      </section>
+
+      <!-- 作者黑名單 -->
+      <section id="section-author-black" class="config-section">
+        <header class="section-header">
+          <h2>🚫 作者/譯者黑名單</h2>
+          <p class="description">符合此名單的作者，書籍名稱將會變淡並加上刪除線。</p>
+        </header>
+        <div class="input-card">
+          <div class="input-group">
+            <input type="text" id="author-input" placeholder="名稱 (必填)...">
+            <textarea id="author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+            <button id="add-author" class="btn-add btn-black">新增至黑名單</button>
+          </div>
+        </div>
+        <ul id="author-list" class="list"></ul>
+      </section>
+
+      <!-- 出版社優良名單 -->
+      <section id="section-pub-white" class="config-section">
+        <header class="section-header">
+          <h2>✅ 出版社優良名單</h2>
+          <p class="description">符合此名單的出版社，會以深綠色橢圓背景突顯。</p>
+        </header>
+        <div class="input-card">
+          <div class="input-group">
+            <input type="text" id="white-pub-input" placeholder="名稱 (必填)...">
+            <textarea id="white-pub-note" placeholder="為什麼這家出版社很讚？(選填，支援多行)..." rows="3"></textarea>
+            <button id="add-white-pub" class="btn-add btn-white">新增至優良名單</button>
+          </div>
+        </div>
+        <ul id="white-pub-list" class="list"></ul>
+      </section>
+
+      <!-- 作者優良名單 -->
+      <section id="section-author-white" class="config-section">
+        <header class="section-header">
+          <h2>✅ 作者/譯者優良名單</h2>
+          <p class="description">符合此名單的作者，會以深綠色橢圓背景突顯。</p>
+        </header>
+        <div class="input-card">
+          <div class="input-group">
+            <input type="text" id="white-author-input" placeholder="名稱 (必填)...">
+            <textarea id="white-author-note" placeholder="備註 (選填，支援多行)..." rows="3"></textarea>
+            <button id="add-white-author" class="btn-add btn-white">新增至優良名單</button>
+          </div>
+        </div>
+        <ul id="white-author-list" class="list"></ul>
+      </section>
+    </main>
   </div>
 
   <script src="options.js"></script>
