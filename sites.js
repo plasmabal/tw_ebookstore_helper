@@ -46,11 +46,11 @@
           return {
             blocks: [
               {
-                selector: 'body',
+                selector: '.rm-book-detail',
                 elements: (b) => ({
                   publishers: Array.from(b.querySelectorAll('a[href*="/publisher/"], [itemprop="publisher"] a')),
                   authors: Array.from(b.querySelectorAll('a[href*="/contributor/"], [itemprop="author"] a')),
-                  title: b.querySelector('h1[itemprop="name"], .book-title')
+                  title: b.querySelector('h1')
                 })
               }
             ]
