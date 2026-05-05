@@ -152,6 +152,36 @@
     if (!window.location.hash.includes('#wishlist')) return;
 
     const items = document.querySelectorAll('li.cart-list-item');
+
+    // --- 新增：自動清理已不在清單中的備註 ---
+    if (items.length > 0) {
+      const currentIds = new Set();
+      items.forEach(item => {
+        const coverLink = item.querySelector('.item-cover-link');
+        if (coverLink) {
+          const bookIdMatch = coverLink.href.match(/\/book\/(\d+)/);
+          if (bookIdMatch) currentIds.add(bookIdMatch[1]);
+        }
+      });
+
+      const remarks = cachedLists.wishlistRemarks;
+      let hasChanged = false;
+      const newRemarks = { ...remarks };
+
+      Object.keys(remarks).forEach(id => {
+        // 如果備註中的 ID 不在目前頁面上，代表書籍已被移除或購買
+        if (!currentIds.has(id)) {
+          delete newRemarks[id];
+          hasChanged = true;
+        }
+      });
+
+      if (hasChanged) {
+        chrome.storage.local.set({ wishlistRemarks: newRemarks });
+      }
+    }
+
+    // --- 原有的注入邏輯 ---
     items.forEach(item => {
       if (item.querySelector('.teh-wishlist-remark-container')) return;
 
