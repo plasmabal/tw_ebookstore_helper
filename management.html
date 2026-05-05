@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>台灣電子書商小幫手 - 設定</title>
-  <link rel="stylesheet" href="options.css">
+  <title>台灣電子書商小幫手 - 管理中心</title>
+  <link rel="stylesheet" href="management.css">
 </head>
 <body>
   <div class="app-container">
@@ -29,6 +29,12 @@
           </button>
           <button class="nav-item" data-target="section-author-white">
             ✍️ 作者/譯者 <span class="count" id="count-author-white">0</span>
+          </button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">🛠️ 系統工具</div>
+          <button class="nav-item" data-target="section-system">
+            💾 資料備份與還原
           </button>
         </div>
       </nav>
@@ -102,9 +108,33 @@
         </div>
         <ul id="white-author-list" class="list"></ul>
       </section>
+
+      <!-- 系統管理 -->
+      <section id="section-system" class="config-section">
+        <header class="section-header">
+          <h2>🛠️ 資料備份與還原</h2>
+          <p class="description">在此匯出您的所有設定與名單，或從 JSON 檔案還原。這對於在不同環境間遷移資料非常有用。</p>
+        </header>
+        <div class="input-card">
+          <div class="system-actions">
+            <div class="action-item">
+              <h3>📤 備份資料</h3>
+              <p>將目前所有的黑名單、優良名單與待購備註匯出為 JSON 檔案。</p>
+              <button id="export-btn" class="btn-system btn-blue">匯出備份檔案 (JSON)</button>
+            </div>
+            <hr class="divider">
+            <div class="action-item" id="import-drop-zone">
+              <h3>📥 還原資料</h3>
+              <p>從備份檔案還原資料。您可以點擊下方按鈕選取檔案，或<strong>直接將 JSON 檔案拖拉至此處</strong>。</p>
+              <input type="file" id="import-file" accept=".json" style="display:none">
+              <button id="import-btn" class="btn-system btn-gray">選取備份檔案並還原</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <script src="options.js"></script>
+  <script src="management.js"></script>
 </body>
 </html>

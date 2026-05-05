@@ -256,3 +256,58 @@ textarea {
 .delete-btn:hover {
   color: #ff4d4d;
 }
+
+/* System Management Section */
+.system-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.action-item {
+  padding: 15px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.action-item.drag-over {
+  border: 2px dashed #3498db;
+  background: rgba(52, 152, 219, 0.05);
+  transform: scale(1.01);
+}
+
+.action-item h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.action-item p {
+  margin: 0 0 15px 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.btn-system {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-blue { background: #3498db; }
+.btn-blue:hover { background: #2980b9; }
+
+.btn-gray { background: #95a5a6; }
+.btn-gray:hover { background: #7f8c8d; }
+
+.divider {
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 10px 0;
+}

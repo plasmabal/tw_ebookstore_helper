@@ -9,7 +9,7 @@
   "host_permissions": [
     "https://readmoo.com/*"
   ],
-  "options_page": "options.html",
+  "options_page": "management.html",
   "action": {
     "default_popup": "popup.html"
   },
