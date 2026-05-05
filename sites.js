@@ -46,11 +46,30 @@
           return {
             blocks: [
               {
-                selector: '.rm-book-detail',
+                selector: '.book-detail-info',
                 elements: (b) => ({
-                  publishers: Array.from(b.querySelectorAll('a[href*="/publisher/"], [itemprop="publisher"] a')),
-                  authors: Array.from(b.querySelectorAll('a[href*="/contributor/"], [itemprop="author"] a')),
+                  publishers: Array.from(b.querySelectorAll('a[href*="/publisher/"], .book-meta-published a[itemprop="name"]')),
+                  authors: Array.from(b.querySelectorAll('.contributors-list-item a[itemprop="name"]')),
                   title: b.querySelector('h1')
+                })
+              }
+            ]
+          };
+        }
+
+        // 作者頁模式 (URL 包含 /contributor/)
+        if (path.match(/\/contributor\/\d+/)) {
+          return {
+            global: {
+              authors: Array.from(doc.querySelectorAll('h1'))
+            },
+            blocks: [
+              {
+                selector: '.listItem-box, .gridItem-box, .rm-ct-listItem .listItem-box',
+                elements: (b) => ({
+                  publishers: Array.from(b.querySelectorAll('.publisher-info a, a[href*="/publisher/"]')),
+                  authors: Array.from(b.querySelectorAll('.contributor-info a, .author a, a[href*="/contributor/"]')),
+                  title: b.querySelector('h4 a, .title a, [itemprop="name"]')
                 })
               }
             ]

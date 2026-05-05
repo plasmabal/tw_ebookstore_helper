@@ -355,6 +355,18 @@
             applyStyles(el, text, 'publisher');
           });
         }
+
+        if (targets.global.authors) {
+          targets.global.authors.forEach(el => {
+            const text = Array.from(el.childNodes)
+              .filter(n => n.nodeType === Node.TEXT_NODE)
+              .map(n => n.textContent.trim())
+              .join("")
+              .trim();
+
+            applyStyles(el, text, 'author');
+          });
+        }
       }
 
       // 2. 處理區塊層級 (Blocks)
