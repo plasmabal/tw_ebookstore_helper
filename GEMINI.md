@@ -4,6 +4,7 @@
 
 ## 1. 網頁 DOM 解析策略 (Readmoo 特定)
 *   **高容錯的選擇器**：Readmoo 的網頁結構與 URL 格式會變動（如 `/search/contributor/` vs `/contributor/`）。在抓取網頁元素時，應優先使用標準的 Schema.org 屬性（如 `[itemprop="author"]`, `[itemprop="publisher"]`），並搭配多種備用選擇器（Fallback Selectors）。
+*   **以實測 DOM 為準**：AI 輔助工具可能回傳虛構或過時的類名（如 `.book-header`）。定義選擇器時必須以 Chrome DevTools 實際觀察到的 DOM 結構為準。
 *   **資料清理**：在取得 DOM 內的文字進行比對前，必須統一執行 `.trim()` 清除前後空白與換行。
 
 ## 2. UI / UX 設計與非干擾原則
@@ -33,6 +34,9 @@
     *   應優先在父容器加上標記類別（如 `.teh-blacklisted-text`），並利用 CSS 背景色或偽元素進行視覺處理，以 100% 維持原網頁的佈局順序。
 *   **向下相容的資料遷移 (Data Migration)**：當儲存格式從簡單類型（如 String）演進為複雜類型（如 Object）時，必須在 `options.js` 與 `content.js` 中實作 `migrateData` 函數，確保舊版資料在載入時能自動無痛轉換。
 *   **跨分頁狀態同步**：應全面利用 `chrome.storage.onChanged` 達成設定頁面與內容劇本間的實時連動。包含計數器更新與視覺樣式切換，均應在不重新整理頁面的前提下完成。
+*   **分層作用域原則 (Layered Scoping Principle)**：
+    *   **主體標題劃線 (Title Strike-through)**：針對書籍詳情頁的主標題（H1），其判定範圍必須嚴格鎖定在該書的資訊區塊（如 `.book-detail-info`），嚴禁包含推薦區，以避免誤傷。
+    *   **全域元資料標記 (Global Metadata Styling)**：對於作者、出版社名字的打叉或變色樣式，則可以儘量擴及全網頁（包含推薦區塊），以提供更全面的資訊提示。
 
 ## 7. 測試與驗證 (Testing & Verification)
 為了確保後續開發不影響現有功能，應定期使用以下 URL 進行回歸測試：
