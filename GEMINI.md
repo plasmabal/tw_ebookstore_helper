@@ -38,7 +38,13 @@
     *   **主體標題劃線 (Title Strike-through)**：針對書籍詳情頁的主標題（H1），其判定範圍必須嚴格鎖定在該書的資訊區塊（如 `.book-detail-info`），嚴禁包含推薦區，以避免誤傷。
     *   **全域元資料標記 (Global Metadata Styling)**：對於作者、出版社名字的打叉或變色樣式，則可以儘量擴及全網頁（包含推薦區塊），以提供更全面的資訊提示。
 
-## 7. 測試與驗證 (Testing & Verification)
+## 7. 發布與圖示規範 (Publishing & Icons)
+*   **商店圖示要求**：Chrome Web Store 的商店圖示 (`icon128.png`) 必須為完美的 `128x128` 正方形。
+*   **母圖管理**：專案中的 `icons/icon_new.png` 為基準母圖。
+*   **重新生成流程**：若未來需要更換圖示，必須先利用 AI 產生無外框、滿版的圖片並覆蓋 `icon_new.png`。然後使用 `ImageMagick` 進行去背 (`-transparent white`)、裁切 (`-trim`) 與加上白邊 (`-morphology dilate`)，最後再縮放成 `16`, `32`, `48`, `128` 四種尺寸。
+*   **防呆機制**：打包腳本 (`scripts/build.js`) 已內建尺寸檢查邏輯，若圖示大小不符規定，將自動中止打包。
+
+## 8. 測試與驗證 (Testing & Verification)
 為了確保後續開發不影響現有功能，應定期使用以下 URL 進行回歸測試：
 
 *   **書籍詳情頁 (價格試算與黑名單)**:

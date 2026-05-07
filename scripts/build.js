@@ -7,6 +7,33 @@ const backupPath = './manifest.backup.json';
 console.log('🚀 Starting packaging process...');
 
 try {
+  // 0. 檢查圖示尺寸 (防呆機制)
+  console.log('🖼️ Validating icon dimensions...');
+  const checkIconSize = (filePath, expectedSize) => {
+    if (!fs.existsSync(filePath)) throw new Error(`Missing icon: ${filePath}`);
+    const buffer = Buffer.alloc(24);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buffer, 0, 24, 0);
+    fs.closeSync(fd);
+
+    if (buffer.toString('hex', 0, 8) !== '89504e470d0a1a0a') {
+      throw new Error(`File is not a valid PNG: ${filePath}`);
+    }
+
+    const width = buffer.readUInt32BE(16);
+    const height = buffer.readUInt32BE(20);
+
+    if (width !== expectedSize || height !== expectedSize) {
+      throw new Error(`Icon size mismatch! ${filePath} is ${width}x${height}, but must be exactly ${expectedSize}x${expectedSize}.`);
+    }
+  };
+
+  checkIconSize('icons/icon16.png', 16);
+  checkIconSize('icons/icon32.png', 32);
+  checkIconSize('icons/icon48.png', 48);
+  checkIconSize('icons/icon128.png', 128);
+  console.log('✅ Icon validation passed!');
+
   // 1. 備份 manifest.json
   fs.copyFileSync(manifestPath, backupPath);
 
