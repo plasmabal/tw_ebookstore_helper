@@ -53,3 +53,5 @@
 *   **黑名單管理頁面 (Options)**:
     *   URL: 在 Chrome 擴充功能管理介面點擊「選項」或點擊 popup 齒輪。
     *   驗證重點：確認輸入框 Enter 鍵有效；確認新增/刪除操作能立即反映到已開啟的網頁分頁中。
+
+> **💡 自動化測試知識庫**：關於本專案的 E2E 測試架構、無頭注入技巧與 Flaky Test 解決方案，請務必參閱 [docs/Extension_Testing_Patterns.md](docs/Extension_Testing_Patterns.md)。

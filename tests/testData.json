@@ -1,0 +1,27 @@
+{
+  "publisherBlacklist": [
+    {
+      "name": "典石成金工作室",
+      "note": "測試資料"
+    }
+  ],
+  "authorBlacklist": [
+    {
+      "name": "林熹",
+      "note": "測試資料"
+    }
+  ],
+  "publisherWhitelist": [
+    {
+      "name": "獨步文化",
+      "note": ""
+    }
+  ],
+  "authorWhitelist": [
+    {
+      "name": "布蘭登．山德森",
+      "note": "山神～"
+    }
+  ],
+  "wishlistRemarks": {}
+}

@@ -1,0 +1,18 @@
+{
+  "name": "tw_ebookstore_helper",
+  "version": "1.0.0",
+  "description": "這是一個專為台灣電子書讀者開發的 Chrome 擴充功能，旨在優化各家電子書平台的購書體驗。目前主要針對 Readmoo 讀墨提供便利的價格計算與領書額度建議功能。",
+  "main": "content.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "build": "zip -r release.zip . -x 'node_modules/*' -x 'tests/*' -x 'package*.json' -x '.git/*' -x '.*' -x 'jest.config.js'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "puppeteer": "^24.43.0"
+  }
+}

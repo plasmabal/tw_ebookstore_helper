@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "Taiwan Ebookstore Helper",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArYr1O4OO7R6ECJXgAIaQTZWUs8u8Qn96JeLCGOPn0m7bUNbSSzfUkIuQbGt6k+RYXzi/sxeCbJEyyAdDWU2YID2zIvj9GGduNWfP6OTafQAodNb1EGAWE8CaaeMEeu+xJQEthnv2UqeAl/0KfDNc2jviI4cqzEhnTM0GRAV5MDmmxJyRiWPI2ro3JfO2Mcu2qT2vF56wG3PQiODjsNX4YENJRXLjvMCjSx2YxNtuJ2waTV4R0UE2hnt/fx1CnM11GdEBOxbwBe4OubpkTxPYdpUu+B7+AKRjOw0CIRq/o5wvd9PmH4ora0t3GrjcG2VtmMfkBQEWpJsNs8crWAc6fQIDAQAB",
   "description": "提供台灣電子書商網站的便利功能，包含 Readmoo 折扣計算與領書額度建議。",
   "permissions": [
     "storage"

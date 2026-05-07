@@ -1,0 +1,17 @@
+---
+description: 執行專案 E2E 測試的流程與規範
+globs: *
+---
+
+# 執行測試 (run_test)
+
+當使用者要求「執行測試」、「跑測試」或「驗證功能」時，請嚴格遵循以下步驟：
+
+1.  **執行指令**：在終端機執行 `npm test`。
+2.  **等待執行**：由於測試環境使用完整的 Puppeteer (包含下載好的 Chromium) 進行隔離執行，啟動與測試過程可能需要大約 30 到 45 秒。請耐心等待指令執行完畢，**切勿中斷**。
+3.  **錯誤排解指南**：
+    *   若出現 timeout 或 class 比對失敗 (`Received: false`)，優先檢查目標網站 (Readmoo) 是否改版，導致 `sites.js` 的選擇器 (Selector) 失效。
+    *   注意：擴充功能的 DOM 變更操作具有 300ms 的 Debounce。測試腳本 (`content.test.js`) 預設已使用 `waitForFunction` 處理延遲，若依然抓不到，請使用瀏覽器工具檢查實際 DOM 結構。
+    *   確保測試用的資料載入正常。測試資料是透過 `chrome-extension://mmmgehlnhopcejokbbdjblejkkbbahek/management.html` 的上下文進行注入的。
+
+4.  **測試範圍**：包含 8 個核心網頁 E2E 案例 (`tests/content.test.js`) 與管理介面功能測試 (`tests/management.test.js`)。測試完成後請向使用者回報成功/失敗項目數量。
