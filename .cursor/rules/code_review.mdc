@@ -1,0 +1,31 @@
+---
+description: 執行專案程式碼審閱 (Code Review) 的標準與規範
+globs: *
+---
+
+# Code Review 規範 (code_review)
+
+當使用者要求「進行 Code Review」、「檢查程式碼」或「審閱改動」時，請對專案進行全面性的掃描，並針對以下維度提供具體的改善建議：
+
+## 1. 🛡️ Security (安全性)
+*   **XSS 防禦**：檢查是否嚴格使用 `.textContent` 與 `.innerText`。**嚴禁使用 `.innerHTML`** 插入任何包含外部、使用者定義或未經嚴格驗證的資料。
+*   **資料驗證**：在處理 `JSON.parse` (如匯入備份或從 Storage 讀取) 時，必須有深度結構檢查（例如 `Array.isArray()` 與內部屬性驗證），確保程式不會因為格式錯誤而崩潰。
+*   **CSP 合規**：檢查是否誤用 Inline Event Handlers (如 `<button onclick="...">`)。所有事件綁定必須在獨立的 JS 檔案中透過 `addEventListener` 或 `onclick` 動態完成。
+
+## 2. ⚡ Performance (效能)
+*   **Storage 最佳化**：檢查 `chrome.storage.onChanged` 監聽器是否直接利用 `changes` 參數進行局部 cache 更新，避免頻繁呼叫非同步的 `chrome.storage.local.get`。
+*   **節流與防抖 (Throttle/Debounce)**：檢視 `MutationObserver` 或高頻觸發的事件處理（如 Scroll/Resize）是否配有適當的延遲 (Debounce 至少 300ms)。
+*   **DOM 重複處理**：檢視迴圈操作是否利用了標記 (如 `dataset` 旗標) 來避免對同一個節點進行重複的、昂貴的樣式注入或 DOM 修改。
+
+## 3. 🌐 Browser Tech (擴充功能特定技術)
+*   **生命週期檢查 (Context Invalidated)**：強制檢查呼叫任何 `chrome.*` API 前，是否有加上 `if (!chrome.runtime?.id) return;` 的保護機制，以防止擴充功能更新後導致的分頁崩潰。
+*   **儲存 API 選用**：確保大量資料（如黑名單、備註）儲存在 `chrome.storage.local` 而非有嚴格容量限制的 `sync`。
+
+## 4. 💎 Extension Best Practices (最佳實務)
+*   **API 錯誤處理**：在使用 Chrome API 的 Callback 或 Promise 時，檢查是否有檢查 `chrome.runtime.lastError`。
+*   **選擇器強健度**：優先使用 Schema.org 屬性 (如 `[itemprop="name"]`) 作為選擇器，而非容易變動的樣式類名。
+*   **非侵入式 UI**：注入的 UI 必須緊湊、不干擾原網頁操作。檢查配色是否柔和且與 Readmoo 原生風格協調。
+*   **Console 清理與格式**：檢查是否殘留除錯用的 `console.log`。**嚴禁保留行尾多餘空白 (Trailing spaces)**。
+
+---
+執行完 Review 後，請將建議分類整理，並說明每項建議的風險等級 (High/Medium/Low)。
