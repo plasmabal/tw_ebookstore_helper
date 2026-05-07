@@ -22,15 +22,28 @@
       run(); // 初始執行
     });
 
-    chrome.storage.onChanged.addListener(() => {
-      chrome.storage.local.get([
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace !== 'local') return;
+
+      const res = {};
+      let hasChanges = false;
+      const validKeys = [
         'publisherBlacklist', 'authorBlacklist',
         'publisherWhitelist', 'authorWhitelist',
         'wishlistRemarks'
-      ], (res) => {
+      ];
+
+      validKeys.forEach(key => {
+        if (changes[key]) {
+          res[key] = changes[key].newValue;
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
         updateCache(res);
         run();
-      });
+      }
     });
   }
 
@@ -41,11 +54,11 @@
       return list.map(item => item.name.trim());
     };
 
-    cachedLists.black.publisher = migrate(res.publisherBlacklist);
-    cachedLists.black.author = migrate(res.authorBlacklist);
-    cachedLists.white.publisher = migrate(res.publisherWhitelist);
-    cachedLists.white.author = migrate(res.authorWhitelist);
-    cachedLists.wishlistRemarks = res.wishlistRemarks || {};
+    if ('publisherBlacklist' in res) cachedLists.black.publisher = migrate(res.publisherBlacklist);
+    if ('authorBlacklist' in res) cachedLists.black.author = migrate(res.authorBlacklist);
+    if ('publisherWhitelist' in res) cachedLists.white.publisher = migrate(res.publisherWhitelist);
+    if ('authorWhitelist' in res) cachedLists.white.author = migrate(res.authorWhitelist);
+    if ('wishlistRemarks' in res) cachedLists.wishlistRemarks = res.wishlistRemarks || {};
   }
 
   // --- 待購清單備註功能 ---

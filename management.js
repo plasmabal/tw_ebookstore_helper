@@ -172,12 +172,32 @@ function handleImport(file) {
     try {
       const data = JSON.parse(e.target.result);
 
-      // 基本結構驗證
+      // 深度結構驗證
       const validKeys = [
         'publisherBlacklist', 'authorBlacklist',
         'publisherWhitelist', 'authorWhitelist',
         'wishlistRemarks'
       ];
+
+      const validateList = (list) => {
+        if (!list) return true;
+        if (!Array.isArray(list)) return false;
+        return list.every(item => typeof item === 'string' || (item && typeof item === 'object' && 'name' in item));
+      };
+
+      if (!validateList(data.publisherBlacklist) ||
+          !validateList(data.authorBlacklist) ||
+          !validateList(data.publisherWhitelist) ||
+          !validateList(data.authorWhitelist)) {
+        alert('❌ 錯誤：備份檔案結構損壞 (陣列格式不符)。');
+        return;
+      }
+
+
+      if (data.wishlistRemarks && typeof data.wishlistRemarks !== 'object') {
+        alert('❌ 錯誤：備份檔案結構損壞 (備註格式不符)。');
+        return;
+      }
 
       const hasValidData = validKeys.some(key => data.hasOwnProperty(key));
       if (!hasValidData) {
