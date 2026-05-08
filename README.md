@@ -2,6 +2,9 @@
 
 這是一個專為台灣電子書讀者開發的 Chrome 擴充功能，旨在優化各家電子書平台的購書體驗。目前主要針對 Readmoo 讀墨提供便利的價格計算與領書額度建議功能。
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/mmemokbgpmfkapbcaddcongejnjjepba.svg)](https://chromewebstore.google.com/detail/taiwan-ebookstore-helper/mmemokbgpmfkapbcaddcongejnjjepba)
+[👉 前往 Chrome 線上應用程式商店安裝](https://chromewebstore.google.com/detail/taiwan-ebookstore-helper/mmemokbgpmfkapbcaddcongejnjjepba)
+
 ## 專案目的
 
 在台灣各電子書平台購書時，讀者常需要計算折扣後的實際金額，或是評估該使用現金購買還是使用領書額度（例如 Readmoo 的領書本數）。本工具自動擷取網頁上的價格資訊，並即時計算對應的數據，幫助讀者做出最划算的購書決策。
@@ -39,6 +42,10 @@
 
 ## 安裝說明
 
+### 商店版本 (推薦)
+直接前往 [Chrome 線上應用程式商店](https://chromewebstore.google.com/detail/taiwan-ebookstore-helper/mmemokbgpmfkapbcaddcongejnjjepba) 點擊「加到 Chrome」。
+
+### 開發者版本
 1. 下載此專案原始碼。
 2. 開啟 Chrome 瀏覽器，進入 `chrome://extensions/`。
 3. 開啟右上角的「開發者模式」。

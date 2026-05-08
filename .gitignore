@@ -2,3 +2,4 @@ node_modules/
 scratch.*
 tmp_ext/
 release.zip
+.DS_Store
