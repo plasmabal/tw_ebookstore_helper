@@ -36,7 +36,12 @@
         }
 
         if (!ebookPrice) return null;
-        return { price: ebookPrice, isSale, container };
+
+        // 偵測領書額度可用性
+        const tokenBtn = Array.from(doc.querySelectorAll('button')).find(b => b.innerText.includes('領書額度兌換'));
+        const isTokenApplicable = tokenBtn ? !tokenBtn.disabled : true;
+
+        return { price: ebookPrice, isSale, container, isTokenApplicable };
       },
       getBlacklistTargets: (doc) => {
         const path = window.location.pathname;

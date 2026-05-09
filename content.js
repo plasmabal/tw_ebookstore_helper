@@ -291,9 +291,13 @@
       const options = [
         { id: 'd75', label: '75折', cost: Math.round(price * 0.75), display: `75折: ${Math.round(price * 0.75)}` },
         { id: 'd80', label: '8折', cost: Math.round(price * 0.80), display: `8折: ${Math.round(price * 0.80)}` },
-        { id: 'm50', label: '-50', cost: Math.max(0, price - 50), display: `-50: ${Math.max(0, price - 50)}` },
-        { id: 'token', label: `領書額度 ${pointsNeeded} 點`, cost: tokenCost, display: `領書額度 ${pointsNeeded} 點` }
+        { id: 'm50', label: '-50', cost: Math.max(0, price - 50), display: `-50: ${Math.max(0, price - 50)}` }
       ];
+
+      // 僅在適用時加入領書額度選項
+      if (info.isTokenApplicable !== false) {
+        options.push({ id: 'token', label: `領書額度 ${pointsNeeded} 點`, cost: tokenCost, display: `領書額度 ${pointsNeeded} 點` });
+      }
 
       // 找出最划算的選項 (cost 最低者)
       const bestOption = options.reduce((prev, curr) => (prev.cost <= curr.cost ? prev : curr));
