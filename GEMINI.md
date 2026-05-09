@@ -6,6 +6,7 @@
 *   **專項文件管理**：專項文件（如各書商開發細節、工具教學）統一放置於 `docs/` 目錄裡，檔名採小寫。
     *   [Readmoo 開發規範](docs/readmoo.md)
     *   [Agent Browser 使用技巧](docs/agent-browser-tips.md)
+*   **瀏覽器工具優先權 (Browser Tool Priority)**：當任務需要存取網頁結構與內容時，必須優先使用專案內的 `agent-browser` 技能，嚴禁在未經確認的情況下使用內建的 `browser_subagent`。若遇到特定工作必須使用內建工具才能完成時，必須先獲得使用者的明確同意。
 *   **AI 主動糾錯**：若使用者指示中存在明顯的邏輯不一致或結構錯誤，AI 助手必須主動向使用者提出並協助修正，而非盲目執行。
 *   **Plan Mode 執行原則**：在 Antigravity 中，當 Plan Mode 開啟時，AI 必須獲得使用者的明確行動指示（如 "go", "execute"）後才可以開始動手修改程式碼；否則應以完善計畫或問答交流為主。
 

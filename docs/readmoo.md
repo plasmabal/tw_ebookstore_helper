@@ -12,9 +12,23 @@
 *   **書籍元數據 (出版日期、定價等)**：`.book-metadata`
 *   **書籍標題**：`h1` (位於 `.book-detail-info` 內)
 *   **作者/出版社連結**：`[itemprop="author"]`, `[itemprop="publisher"]`
-*   **電子書售價**：`.price-buy`, `.price-selling`
+*   **電子書售價/特價區塊**：`.price` (位於 `.book-detail-info` 內)
+*   **精確定位關鍵字**：`"電子書售價"`、`"電子書特價"` (透過 `innerText` 比對)
 
-## 3. 測試與驗證 (Regression Testing)
+## 3. 價格抓取最佳實踐 (Price Extraction Best Practices)
+由於 Readmoo 頁面中存在多處價格標籤（如推薦區），抓取「當前書籍」價格時必須遵循以下路徑：
+
+1.  **鎖定容器**：先定位到 `.book-detail-info`。
+2.  **文字過濾**：在容器內尋找 `.price` 元素，並比對其 `innerText` 是否包含目標字串：
+    *   `"電子書售價"` -> 對應原價。
+    *   `"電子書特價"` -> 對應目前活動價。
+3.  **數值提取**：定位該 `.price` 元素下的 `strong` 標籤，取得文字後使用 `replace(/[^\d]/g, '')` 轉為純數字。
+
+> [!TIP]
+> 使用 `agent-browser` 驗證時，建議指令：
+> `agent-browser eval "() => Array.from(document.querySelectorAll('.book-detail-info .price')).map(el => el.innerText)"`
+
+## 4. 測試與驗證 (Regression Testing)
 為了確保後續開發不影響現有功能，應定期使用以下 URL 進行回歸測試：
 
 *   **書籍詳情頁 (價格試算與黑名單)**:
