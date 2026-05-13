@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 * **領書額度適用性自動偵測**：自動識別書籍是否支援「領書額度」兌換（如排除不適用的套書），提高價格試算的準確性。
 * **價格抓取邏輯優化**：改採更穩定的「容器 + 文字過濾」策略，提升 Readmoo 改版時的耐受度。
 
+### Changed
+* **開發工具優化**：移除專案內冗餘的 `agent-browser` skill，改為統一使用全域設定。
+
 
 ## [0.1.0] - Initial Release
 ### Added
