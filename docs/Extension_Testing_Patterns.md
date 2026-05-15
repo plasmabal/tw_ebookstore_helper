@@ -12,7 +12,14 @@
     1.  **固定 Extension ID**：在 `manifest.json` 中手動加入了一組固定的 `key` 值（此行為對發布至 Chrome Web Store 沒有影響，因商店會根據開發者憑證重新核發或認定）。這使得擴充功能的 ID 在任何本地測試環境下都固定為 `mmmgehlnhopcejokbbdjblejkkbbahek`。
     2.  **特權上下文注入**：測試腳本 (`tests/setup.js` 等) 會透過 Puppeteer 直接導航至 `chrome-extension://mmmgehlnhopcejokbbdjblejkkbbahek/management.html`。在這個擴充功能專屬的頁面中，擁有完整的 Extension Context 權限，因此可以直接使用 `page.evaluate` 執行 `chrome.storage.local.set`，達成測試資料預載入。
 
-## 3. 非同步斷言 (Async Assertions) 與嚴謹的選擇器
+## 3. 新網站的 CSS Selector 必須實測，不可推測
+
+新增書商支援時，**所有 CSS selector 必須先開啟真實頁面確認後才能寫進 `sites.js`**，不可依賴 AI 推測或參考舊 stash 的程式碼。
+
+*   **背景**：網站的 DOM 結構往往與「看起來合理」的 class 名稱不同。例如 `search.books.com.tw` 搜尋頁中，`li.item` 看似是書籍卡片，實際上是左側分類過濾標籤；真正的搜尋結果在 `.table-td`。AI 生成的 selector 若未經實測，很容易選錯容器卻毫無報錯。
+*   **做法**：使用 Puppeteer 腳本或 agent-browser，在真實頁面上執行 `document.querySelectorAll(selector)` 來確認元素存在與數量，並抽查 `innerText` / `href` 確認是正確的目標節點，再寫入程式碼。
+
+## 4. 非同步斷言 (Async Assertions) 與嚴謹的選擇器
 *   **問題背景**：
     1.  **時間差 (Flaky Tests)**：擴充功能的 `content.js` 在處理 DOM 變更時，為了效能考量，對 `MutationObserver` 加入了 300ms 的 Debounce 延遲。若 Jest 測試在頁面 `load` 完成後立刻進行斷言，往往會因為擴充功能還沒開始上色而誤判失敗。
     2.  **作用域不精準**：早期測試腳本使用的選擇器（如 `a[href*="/publisher/"]`）過於廣泛，會誤抓到網頁頂部的麵包屑導覽列或其他無關連結。

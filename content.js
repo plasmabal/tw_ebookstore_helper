@@ -277,6 +277,7 @@
   function injectPriceInfo() {
     try {
       if (!chrome.runtime?.id) return;
+      if (typeof site.getPriceInfo !== 'function') return;
       const info = site.getPriceInfo(document);
       if (!info || !info.container) return;
       if (info.container.querySelector('.teh-price-helper-container')) return;

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
+* **博客來 (books.com.tw) 名單支援**：黑白名單功能擴展至博客來，在書籍詳情頁（`.type02_p01_wrap`）對作者與出版社套用 `teh-blacklisted-text` / `teh-whitelisted-text` 樣式，並將書名標記為 `teh-blacklisted-title`；列表頁亦支援名單標記（受限於博客來頁面結構，列表頁僅有可連結的作者/出版社資訊才能被標記）。
+* **Kobo TW 名單支援**：黑白名單功能擴展至 Kobo 台灣站，支援書籍詳情頁（作者標記 + 書名打叉）與搜尋頁（作者標記）。Kobo 不顯示出版社連結，故出版社名單不適用。
 * **領書額度適用性自動偵測**：自動識別書籍是否支援「領書額度」兌換（如排除不適用的套書），提高價格試算的準確性。
 * **價格抓取邏輯優化**：改採更穩定的「容器 + 文字過濾」策略，提升 Readmoo 改版時的耐受度。
 

@@ -115,6 +115,80 @@
           ]
         };
       }
+    },
+    {
+      name: "Books.com.tw",
+      detect: (host) => host.includes("books.com.tw"),
+      getBlacklistTargets: (doc) => {
+        const path = window.location.pathname;
+
+        // 商品詳情頁
+        if (path.includes('/products/')) {
+          return {
+            blocks: [
+              {
+                selector: '.type02_p01_wrap',
+                elements: (b) => ({
+                  publishers: Array.from(b.querySelectorAll('a[href*="?pubid="]')),
+                  authors: Array.from(b.querySelectorAll('a[href*="adv_author/1"]')),
+                  title: b.querySelector('h1')
+                })
+              }
+            ]
+          };
+        }
+
+        // 列表頁、搜尋頁 (search.books.com.tw)
+        return {
+          blocks: [
+            {
+              selector: '.table-td',
+              elements: (b) => ({
+                publishers: Array.from(b.querySelectorAll('a[href*="?pubid="]')),
+                authors: Array.from(b.querySelectorAll('a[href*="adv_author/1"]')),
+                title: b.querySelector('h4 a')
+              })
+            }
+          ]
+        };
+      }
+    },
+    {
+      name: "Kobo",
+      detect: (host) => host === "kobo.com",
+      getBlacklistTargets: (doc) => {
+        const path = window.location.pathname;
+
+        // 書籍詳情頁
+        if (path.includes('/ebook/')) {
+          return {
+            blocks: [
+              {
+                selector: '.primary-left-container',
+                elements: (b) => ({
+                  publishers: [],
+                  authors: Array.from(b.querySelectorAll('.visible-contributors a.contributor-name')),
+                  title: b.querySelector('h1.title')
+                })
+              }
+            ]
+          };
+        }
+
+        // 搜尋頁與列表頁
+        return {
+          blocks: [
+            {
+              selector: '[data-ratunit="item"]',
+              elements: (b) => ({
+                publishers: [],
+                authors: Array.from(b.querySelectorAll('[data-testid="authors"] a[data-testid="book-attribute-link"]')),
+                title: b.querySelector('a[data-testid="title"]')
+              })
+            }
+          ]
+        };
+      }
     }
   ];
 
