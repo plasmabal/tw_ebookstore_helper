@@ -170,7 +170,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
-    await new Promise(r => setTimeout(r, 500)); // 等 cleanup 寫入 storage
+    await new Promise(r => setTimeout(r, 500));
 
     const storage = await page.evaluate(() =>
       new Promise(resolve =>

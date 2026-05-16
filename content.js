@@ -225,13 +225,11 @@
 
     btn.dataset.tehObserved = 'true';
     btn.addEventListener('click', () => {
-      const container = btn.closest('#price-btn-container');
-      let bookId = container ? container.dataset.readmooId : null;
-
-      if (!bookId) {
-        const m = window.location.pathname.match(/\/book\/(\d+)/);
-        bookId = m ? m[1] : null;
-      }
+      // Always derive bookId from the URL so it matches the format used on the
+      // wishlist page (coverLink.href). Using data-readmoo-id was unreliable
+      // because Readmoo's attribute may use a different ID format.
+      const m = window.location.pathname.match(/\/book\/(\d+)/);
+      const bookId = m ? m[1] : null;
       if (!bookId) return;
 
       const isAlreadyInWishlist = btn.classList.contains('active') || btn.innerText.includes('已加入');
@@ -295,10 +293,12 @@
     document.body.appendChild(popover);
 
     const onOutsideClick = (e) => {
-      if (!popover.contains(e.target) && e.target !== targetEl) {
-        popover.remove();
-        document.removeEventListener('click', onOutsideClick, true);
-      }
+      if (popover.contains(e.target) || e.target === targetEl) return;
+      // Capture phase fires before Readmoo's handler removes the modal, so
+      // role="dialog" is still in the DOM when we check — ignore those clicks.
+      if (e.target.closest('[role="dialog"]')) return;
+      popover.remove();
+      document.removeEventListener('click', onOutsideClick, true);
     };
     setTimeout(() => document.addEventListener('click', onOutsideClick, true), 0);
 
@@ -311,7 +311,8 @@
 
     const items = document.querySelectorAll('li.cart-list-item');
 
-    // Auto-cleanup: remove stored data for books no longer in the wishlist (once per hash change)
+    // Auto-cleanup: remove stored data for books no longer in the wishlist (once per hash change).
+    // The wishlist page loads all items at once, so currentIds is complete when this runs.
     if (items.length > 0 && !wishlistCleanupDone) {
       wishlistCleanupDone = true;
       const currentIds = new Set();
