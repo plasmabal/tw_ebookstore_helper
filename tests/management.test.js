@@ -111,6 +111,7 @@ describe('Management Page Tests', () => {
 
     await page.goto(`chrome-extension://${extensionId}/management.html`);
     await page.evaluate(async (data) => {
+      await new Promise(resolve => chrome.storage.local.remove('schemaVersion', resolve));
       return new Promise(resolve => chrome.storage.local.set(data, resolve));
     }, legacyData);
 

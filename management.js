@@ -62,7 +62,9 @@ function runMigrations() {
           chrome.storage.local.set({ schemaVersion: CURRENT_SCHEMA }, resolve);
           return;
         }
-        MIGRATIONS[pending[i]]().then(() => runNext(i + 1));
+        const fn = MIGRATIONS[pending[i]];
+        if (!fn) { runNext(i + 1); return; }
+        fn().then(() => runNext(i + 1));
       };
       runNext(0);
     });
@@ -294,7 +296,7 @@ function buildDisplayRow(item, index, items, storageKey, li) {
   const delBtn = document.createElement('button');
   delBtn.className = 'delete-btn';
   delBtn.title = '刪除';
-  delBtn.innerHTML = '🗑️';
+  delBtn.textContent = '🗑️';
   delBtn.onclick = () => {
     items.splice(index, 1);
     chrome.storage.local.set({ [storageKey]: items }, loadSettings);
@@ -503,6 +505,8 @@ function startInlineRename(li, oldTag, nameSpan, renameBtn, deleteBtn, onRename)
   const doRename = () => {
     const newTag = input.value.trim();
     if (!newTag || newTag === oldTag) { restoreDisplay(); return; }
+    nameSpan.textContent = newTag;
+    restoreDisplay();
     onRename(oldTag, newTag);
   };
 
@@ -536,7 +540,7 @@ function renameListTag(oldTag, newTag) {
     LIST_KEYS.forEach(key => {
       updates[key] = (res[key] || []).map(item => ({
         ...item,
-        tags: (item.tags || []).map(t => t === oldTag ? newTag : t)
+        tags: [...new Set((item.tags || []).map(t => t === oldTag ? newTag : t))]
       }));
     });
     chrome.storage.local.set(updates, () => {
@@ -566,7 +570,7 @@ function renameWishlistTag(oldTag, newTag) {
   chrome.storage.local.get(['wishlistTags'], (res) => {
     const updated = {};
     Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
-      updated[bookId] = (tags || []).map(t => t === oldTag ? newTag : t);
+      updated[bookId] = [...new Set((tags || []).map(t => t === oldTag ? newTag : t))];
     });
     chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
   });
@@ -617,7 +621,8 @@ function handleImport(file) {
       const validateList = (list) => {
         if (!list) return true;
         if (!Array.isArray(list)) return false;
-        return list.every(item => item && typeof item === 'object' && 'name' in item);
+        return list.every(item => item && typeof item === 'object' && 'name' in item &&
+          (item.tags === undefined || Array.isArray(item.tags)));
       };
 
       for (const key of LIST_KEYS) {
@@ -646,7 +651,10 @@ function handleImport(file) {
       }
 
       if (confirm('⚠️ 注意：還原將會完全覆蓋現有的名單與備註資料！\n確定要繼續嗎？')) {
-        chrome.storage.local.set(data, () => {
+        const keysToRestore = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags'];
+        const safeData = {};
+        keysToRestore.forEach(k => { if (k in data) safeData[k] = data[k]; });
+        chrome.storage.local.set(safeData, () => {
           // Remove schemaVersion so migrations re-run on imported data
           chrome.storage.local.remove('schemaVersion', () => {
             runMigrations().then(() => {

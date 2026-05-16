@@ -97,7 +97,6 @@
 
   function createWishlistChipInput(initialTags = []) {
     const tags = [...initialTags];
-    const pool = cachedLists.wishlistTagPool;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'teh-tag-chip-input';
@@ -155,7 +154,7 @@
     function showDropdown(query) {
       if (!query) { hideDropdown(); return; }
       const q = query.toLowerCase();
-      const suggestions = pool.filter(t => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 5);
+      const suggestions = cachedLists.wishlistTagPool.filter(t => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 5);
       if (!suggestions.length) { hideDropdown(); return; }
       highlightedIdx = -1;
       dropdown.innerHTML = '';
@@ -213,6 +212,7 @@
     wrapper.appendChild(chipsRow);
     wrapper.appendChild(dropdown);
     wrapper.getTags = () => [...tags];
+    wrapper.reset = () => { tags.splice(0); renderChips(); textInput.value = ''; };
 
     return wrapper;
   }
@@ -250,7 +250,8 @@
     popover.className = 'teh-remark-popover';
 
     const rect = targetEl.getBoundingClientRect();
-    popover.style.top  = `${window.scrollY + rect.top - 230}px`;
+    const topPx = Math.max(window.scrollY + 8, window.scrollY + rect.top - 230);
+    popover.style.top  = `${topPx}px`;
     popover.style.left = `${window.scrollX + rect.left}px`;
 
     const textarea = document.createElement('textarea');
@@ -293,6 +294,14 @@
     popover.appendChild(footer);
     document.body.appendChild(popover);
 
+    const onOutsideClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== targetEl) {
+        popover.remove();
+        document.removeEventListener('click', onOutsideClick, true);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', onOutsideClick, true), 0);
+
     textarea.focus();
   }
 
@@ -302,8 +311,9 @@
 
     const items = document.querySelectorAll('li.cart-list-item');
 
-    // Auto-cleanup: remove stored data for books no longer in the wishlist
-    if (items.length > 0) {
+    // Auto-cleanup: remove stored data for books no longer in the wishlist (once per hash change)
+    if (items.length > 0 && !wishlistCleanupDone) {
+      wishlistCleanupDone = true;
       const currentIds = new Set();
       items.forEach(item => {
         const coverLink = item.querySelector('.item-cover-link');
@@ -587,6 +597,8 @@
   }
 
   let timeout = null;
+  let wishlistCleanupDone = false;
+
   function run() {
     injectPriceInfo();
     checkLists();
@@ -596,7 +608,10 @@
 
   initStorage();
 
-  window.addEventListener('hashchange', run);
+  window.addEventListener('hashchange', () => {
+    wishlistCleanupDone = false;
+    run();
+  });
 
   const observer = new MutationObserver(() => {
     if (timeout) clearTimeout(timeout);
