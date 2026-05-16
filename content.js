@@ -233,9 +233,7 @@
       if (!bookId) return;
 
       const isAlreadyInWishlist = btn.classList.contains('active') || btn.innerText.includes('已加入');
-      if (isAlreadyInWishlist) {
-        saveWishlistData(bookId, '', []);
-      } else {
+      if (!isAlreadyInWishlist) {
         setTimeout(() => showRemarkPopover(btn, bookId), 500);
       }
     });
