@@ -5,111 +5,240 @@
   let cachedLists = {
     black: { publisher: [], author: [] },
     white: { publisher: [], author: [] },
-    wishlistRemarks: {}
+    wishlistRemarks: {},
+    wishlistTags: {},
+    wishlistTagPool: []
   };
 
   // 初始化名單並監聽變動
   function initStorage() {
     if (!chrome.runtime?.id) return;
 
-    chrome.storage.local.get([
+    const keys = [
       'publisherBlacklist', 'authorBlacklist',
       'publisherWhitelist', 'authorWhitelist',
-      'wishlistRemarks'
-    ], (res) => {
+      'wishlistRemarks', 'wishlistTags'
+    ];
+
+    chrome.storage.local.get(keys, (res) => {
       if (chrome.runtime.lastError) return;
       updateCache(res);
-      run(); // 初始執行
+      run();
     });
 
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (namespace !== 'local') return;
 
-      const res = {};
-      let hasChanges = false;
       const validKeys = [
         'publisherBlacklist', 'authorBlacklist',
         'publisherWhitelist', 'authorWhitelist',
-        'wishlistRemarks'
+        'wishlistRemarks', 'wishlistTags'
       ];
 
+      const res = {};
+      let hasChanges = false;
       validKeys.forEach(key => {
-        if (changes[key]) {
-          res[key] = changes[key].newValue;
-          hasChanges = true;
-        }
+        if (changes[key]) { res[key] = changes[key].newValue; hasChanges = true; }
       });
 
-      if (hasChanges) {
-        updateCache(res);
-        run();
-      }
+      if (hasChanges) { updateCache(res); run(); }
     });
   }
 
   function updateCache(res) {
-    const migrate = (list) => {
-      if (!list || list.length === 0) return [];
-      if (typeof list[0] === 'string') return list.map(s => s.trim());
-      return list.map(item => item.name.trim());
-    };
+    const getNames = (list) => (list || []).map(item => item.name.trim());
 
-    if ('publisherBlacklist' in res) cachedLists.black.publisher = migrate(res.publisherBlacklist);
-    if ('authorBlacklist' in res) cachedLists.black.author = migrate(res.authorBlacklist);
-    if ('publisherWhitelist' in res) cachedLists.white.publisher = migrate(res.publisherWhitelist);
-    if ('authorWhitelist' in res) cachedLists.white.author = migrate(res.authorWhitelist);
-    if ('wishlistRemarks' in res) cachedLists.wishlistRemarks = res.wishlistRemarks || {};
+    if ('publisherBlacklist' in res) cachedLists.black.publisher = getNames(res.publisherBlacklist);
+    if ('authorBlacklist'    in res) cachedLists.black.author    = getNames(res.authorBlacklist);
+    if ('publisherWhitelist' in res) cachedLists.white.publisher = getNames(res.publisherWhitelist);
+    if ('authorWhitelist'    in res) cachedLists.white.author    = getNames(res.authorWhitelist);
+    if ('wishlistRemarks'    in res) cachedLists.wishlistRemarks = res.wishlistRemarks || {};
+
+    if ('wishlistTags' in res) {
+      cachedLists.wishlistTags = res.wishlistTags || {};
+      const pool = new Set();
+      Object.values(cachedLists.wishlistTags).forEach(tags => {
+        (tags || []).forEach(t => pool.add(t));
+      });
+      cachedLists.wishlistTagPool = [...pool];
+    }
   }
 
-  // --- 待購清單備註功能 ---
+  // --- 待購清單備份功能 ---
 
-  function saveRemark(bookId, text) {
+  function saveWishlistData(bookId, note, tags, callback) {
     if (!chrome.runtime?.id) return;
 
-    chrome.storage.local.get('wishlistRemarks', (res) => {
+    chrome.storage.local.get(['wishlistRemarks', 'wishlistTags'], (res) => {
       if (chrome.runtime?.lastError) return;
-      const remarks = res.wishlistRemarks || {};
-      const trimmedText = text ? text.trim() : "";
+      const remarks = { ...res.wishlistRemarks || {} };
+      const allTags = { ...res.wishlistTags    || {} };
 
-      if (trimmedText) {
-        remarks[bookId] = trimmedText;
-      } else {
-        delete remarks[bookId];
-      }
-      chrome.storage.local.set({ wishlistRemarks: remarks });
+      const trimmedNote = note ? note.trim() : '';
+      if (trimmedNote) remarks[bookId] = trimmedNote;
+      else delete remarks[bookId];
+
+      const cleanTags = (tags || []).filter(t => t.trim());
+      if (cleanTags.length) allTags[bookId] = cleanTags;
+      else delete allTags[bookId];
+
+      // Update in-memory cache immediately so callbacks can read fresh values
+      cachedLists.wishlistRemarks = remarks;
+      cachedLists.wishlistTags    = allTags;
+      const pool = new Set();
+      Object.values(allTags).forEach(ts => (ts || []).forEach(t => pool.add(t)));
+      cachedLists.wishlistTagPool = [...pool];
+
+      chrome.storage.local.set({ wishlistRemarks: remarks, wishlistTags: allTags }, callback);
     });
   }
 
+  // --- Chip input for wishlist (lightweight, no external deps) ---
+
+  function createWishlistChipInput(initialTags = []) {
+    const tags = [...initialTags];
+    const pool = cachedLists.wishlistTagPool;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'teh-tag-chip-input';
+
+    const chipsRow = document.createElement('div');
+    chipsRow.className = 'teh-tag-chips-row';
+
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'teh-tag-text-input';
+    textInput.placeholder = '新增標籤…';
+    textInput.maxLength = 20;
+
+    const dropdown = document.createElement('ul');
+    dropdown.className = 'teh-tag-autocomplete';
+    dropdown.style.display = 'none';
+
+    function renderChips() {
+      chipsRow.innerHTML = '';
+      tags.forEach((tag, i) => {
+        const chip = document.createElement('span');
+        chip.className = 'teh-tag-chip';
+
+        const label = document.createElement('span');
+        label.textContent = tag;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          tags.splice(i, 1);
+          renderChips();
+        });
+
+        chip.appendChild(label);
+        chip.appendChild(removeBtn);
+        chipsRow.appendChild(chip);
+      });
+      chipsRow.appendChild(textInput);
+    }
+
+    function addTag(value) {
+      const tag = value.trim().slice(0, 20);
+      if (!tag || tags.includes(tag)) { textInput.value = ''; return; }
+      tags.push(tag);
+      renderChips();
+      textInput.value = '';
+      dropdown.style.display = 'none';
+      textInput.focus();
+    }
+
+    let highlightedIdx = -1;
+
+    function showDropdown(query) {
+      if (!query) { hideDropdown(); return; }
+      const q = query.toLowerCase();
+      const suggestions = pool.filter(t => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 5);
+      if (!suggestions.length) { hideDropdown(); return; }
+      highlightedIdx = -1;
+      dropdown.innerHTML = '';
+      suggestions.forEach(tag => {
+        const li = document.createElement('li');
+        li.textContent = tag;
+        li.addEventListener('mousedown', (e) => { e.preventDefault(); addTag(tag); });
+        dropdown.appendChild(li);
+      });
+      dropdown.style.display = 'block';
+    }
+
+    function hideDropdown() {
+      dropdown.style.display = 'none';
+      dropdown.innerHTML = '';
+      highlightedIdx = -1;
+    }
+
+    function updateHighlight() {
+      dropdown.querySelectorAll('li').forEach((li, i) => {
+        li.classList.toggle('highlighted', i === highlightedIdx);
+      });
+    }
+
+    textInput.addEventListener('input', () => showDropdown(textInput.value));
+    textInput.addEventListener('blur', hideDropdown);
+    textInput.addEventListener('keydown', (e) => {
+      const isOpen = dropdown.style.display !== 'none';
+      const items  = dropdown.querySelectorAll('li');
+
+      if (isOpen && e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1);
+        updateHighlight();
+        return;
+      }
+      if (isOpen && e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightedIdx = Math.max(highlightedIdx - 1, -1);
+        updateHighlight();
+        return;
+      }
+      if (e.key === 'Escape') { hideDropdown(); return; }
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        if (isOpen && highlightedIdx >= 0) addTag(items[highlightedIdx].textContent);
+        else addTag(textInput.value);
+      } else if (e.key === 'Backspace' && !textInput.value && tags.length > 0) {
+        tags.pop();
+        renderChips();
+      }
+    });
+
+    renderChips();
+    wrapper.appendChild(chipsRow);
+    wrapper.appendChild(dropdown);
+    wrapper.getTags = () => [...tags];
+
+    return wrapper;
+  }
+
+  // ---
+
   function handleBookPageWishlistButton() {
-    // Readmoo 的按鈕 title 在不同狀態下可能會變，我們使用包含文字的選擇器
     const btn = document.querySelector('button[title*="待購清單"]');
     if (!btn || btn.dataset.tehObserved) return;
 
-    btn.dataset.tehObserved = "true";
+    btn.dataset.tehObserved = 'true';
     btn.addEventListener('click', () => {
-      // 優先從父容器取得 data-readmoo-id，否則從網址解析
       const container = btn.closest('#price-btn-container');
       let bookId = container ? container.dataset.readmooId : null;
 
       if (!bookId) {
-        const bookIdMatch = window.location.pathname.match(/\/book\/(\d+)/);
-        bookId = bookIdMatch ? bookIdMatch[1] : null;
+        const m = window.location.pathname.match(/\/book\/(\d+)/);
+        bookId = m ? m[1] : null;
       }
-
       if (!bookId) return;
 
-      // 判斷當前狀態是否為「已加入」(即點擊後會移除)
       const isAlreadyInWishlist = btn.classList.contains('active') || btn.innerText.includes('已加入');
-
       if (isAlreadyInWishlist) {
-        // 執行移除動作，清除備註
-        saveRemark(bookId, "");
+        saveWishlistData(bookId, '', []);
       } else {
-        // 執行新增動作，顯示彈窗
-        // 稍微等待 Readmoo 原生對話框跳出，但不進行二次條件檢查
-        setTimeout(() => {
-          showRemarkPopover(btn, bookId);
-        }, 500);
+        setTimeout(() => showRemarkPopover(btn, bookId), 500);
       }
     });
   }
@@ -120,21 +249,26 @@
     const popover = document.createElement('div');
     popover.className = 'teh-remark-popover';
 
-    // 定位在按鈕上方
     const rect = targetEl.getBoundingClientRect();
-    popover.style.top = `${window.scrollY + rect.top - 140}px`;
+    popover.style.top  = `${window.scrollY + rect.top - 230}px`;
     popover.style.left = `${window.scrollX + rect.left}px`;
 
     const textarea = document.createElement('textarea');
-    textarea.placeholder = "輸入備註 (例如：為何想買這本書？)";
-    textarea.value = cachedLists.wishlistRemarks[bookId] || "";
+    textarea.placeholder = '輸入備註 (例如：為何想買這本書？)';
+    textarea.value = cachedLists.wishlistRemarks[bookId] || '';
+
+    const tagLabel = document.createElement('div');
+    tagLabel.className = 'teh-remark-tag-label';
+    tagLabel.textContent = '🏷️ 標籤:';
+
+    const tagInput = createWishlistChipInput(cachedLists.wishlistTags[bookId] || []);
 
     const footer = document.createElement('div');
     footer.className = 'teh-remark-popover-footer';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'teh-btn-cancel';
-    cancelBtn.textContent = "取消";
+    cancelBtn.textContent = '取消';
     cancelBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -143,17 +277,19 @@
 
     const saveBtn = document.createElement('button');
     saveBtn.className = 'teh-btn-save';
-    saveBtn.textContent = "儲存備註";
+    saveBtn.textContent = '儲存';
     saveBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      saveRemark(bookId, textarea.value);
+      saveWishlistData(bookId, textarea.value, tagInput.getTags());
       popover.remove();
     });
 
     footer.appendChild(cancelBtn);
     footer.appendChild(saveBtn);
     popover.appendChild(textarea);
+    popover.appendChild(tagLabel);
+    popover.appendChild(tagInput);
     popover.appendChild(footer);
     document.body.appendChild(popover);
 
@@ -166,110 +302,139 @@
 
     const items = document.querySelectorAll('li.cart-list-item');
 
-    // --- 新增：自動清理已不在清單中的備註 ---
+    // Auto-cleanup: remove stored data for books no longer in the wishlist
     if (items.length > 0) {
       const currentIds = new Set();
       items.forEach(item => {
         const coverLink = item.querySelector('.item-cover-link');
         if (coverLink) {
-          const bookIdMatch = coverLink.href.match(/\/book\/(\d+)/);
-          if (bookIdMatch) currentIds.add(bookIdMatch[1]);
+          const m = coverLink.href.match(/\/book\/(\d+)/);
+          if (m) currentIds.add(m[1]);
         }
       });
 
-      const remarks = cachedLists.wishlistRemarks;
-      let hasChanged = false;
-      const newRemarks = { ...remarks };
+      const update = {};
+      let changed = false;
 
-      Object.keys(remarks).forEach(id => {
-        // 如果備註中的 ID 不在目前頁面上，代表書籍已被移除或購買
-        if (!currentIds.has(id)) {
-          delete newRemarks[id];
-          hasChanged = true;
-        }
+      const newRemarks = { ...cachedLists.wishlistRemarks };
+      Object.keys(newRemarks).forEach(id => {
+        if (!currentIds.has(id)) { delete newRemarks[id]; changed = true; }
       });
+      if (changed) update.wishlistRemarks = newRemarks;
 
-      if (hasChanged) {
-        chrome.storage.local.set({ wishlistRemarks: newRemarks });
-      }
+      const newTags = { ...cachedLists.wishlistTags };
+      let tagsChanged = false;
+      Object.keys(newTags).forEach(id => {
+        if (!currentIds.has(id)) { delete newTags[id]; tagsChanged = true; }
+      });
+      if (tagsChanged) { update.wishlistTags = newTags; changed = true; }
+
+      if (changed) chrome.storage.local.set(update);
     }
 
-    // --- 原有的注入邏輯 ---
+    // Inject remark + tag UI into each wishlist item
     items.forEach(item => {
       if (item.querySelector('.teh-wishlist-remark-container')) return;
 
       const coverLink = item.querySelector('.item-cover-link');
       if (!coverLink) return;
 
-      const bookIdMatch = coverLink.href.match(/\/book\/(\d+)/);
-      if (!bookIdMatch) return;
-      const bookId = bookIdMatch[1];
+      const m = coverLink.href.match(/\/book\/(\d+)/);
+      if (!m) return;
+      const bookId = m[1];
 
       const detailContent = item.querySelector('.item-detail-content');
       if (!detailContent) return;
 
-      const remarkContainer = document.createElement('div');
-      remarkContainer.className = 'teh-wishlist-remark-container';
+      const container = document.createElement('div');
+      container.className = 'teh-wishlist-remark-container';
 
-      const label = document.createElement('span');
-      label.className = 'teh-wishlist-remark-label';
-      label.textContent = "📝 備註:";
+      function renderDisplay() {
+        container.innerHTML = '';
 
-      const textSpan = document.createElement('span');
-      textSpan.className = 'teh-wishlist-remark-text';
-      textSpan.textContent = cachedLists.wishlistRemarks[bookId] || "";
+        const note = cachedLists.wishlistRemarks[bookId] || '';
+        const tags = cachedLists.wishlistTags[bookId]    || [];
 
-      remarkContainer.appendChild(label);
-      remarkContainer.appendChild(textSpan);
+        const noteLabel = document.createElement('span');
+        noteLabel.className = 'teh-wishlist-remark-label';
+        noteLabel.textContent = '📝 備註:';
 
-      // 點擊編輯
-      remarkContainer.onclick = () => {
-        if (remarkContainer.querySelector('textarea')) return;
+        const noteText = document.createElement('span');
+        noteText.className = 'teh-wishlist-remark-text';
+        noteText.textContent = note;
 
-        const originalText = textSpan.textContent;
+        container.appendChild(noteLabel);
+        container.appendChild(noteText);
+
+        if (tags.length > 0) {
+          const tagsDiv = document.createElement('div');
+          tagsDiv.className = 'teh-wishlist-tags-display';
+          tags.forEach(tag => {
+            const chip = document.createElement('span');
+            chip.className = 'teh-wishlist-tag-chip';
+            chip.textContent = tag;
+            tagsDiv.appendChild(chip);
+          });
+          container.appendChild(tagsDiv);
+        }
+      }
+
+      function renderEdit() {
+        container.innerHTML = '';
+
         const editor = document.createElement('textarea');
         editor.className = 'teh-wishlist-remark-editor';
-        editor.value = originalText;
+        editor.value = cachedLists.wishlistRemarks[bookId] || '';
+        editor.placeholder = '備註 (選填)';
 
-        const oldContent = Array.from(remarkContainer.childNodes);
-        remarkContainer.innerHTML = "";
-        remarkContainer.appendChild(editor);
+        const tagLabel = document.createElement('div');
+        tagLabel.className = 'teh-remark-tag-label';
+        tagLabel.textContent = '🏷️ 標籤:';
+
+        const tagInput = createWishlistChipInput(cachedLists.wishlistTags[bookId] || []);
+
+        const btnRow = document.createElement('div');
+        btnRow.className = 'teh-wishlist-edit-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'teh-btn-save';
+        saveBtn.textContent = '儲存';
+        saveBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          saveWishlistData(bookId, editor.value, tagInput.getTags(), renderDisplay);
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'teh-btn-cancel';
+        cancelBtn.textContent = '取消';
+        cancelBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderDisplay();
+        });
+
+        btnRow.appendChild(saveBtn);
+        btnRow.appendChild(cancelBtn);
+        container.appendChild(editor);
+        container.appendChild(tagLabel);
+        container.appendChild(tagInput);
+        container.appendChild(btnRow);
         editor.focus();
+      }
 
-        const finishEdit = () => {
-          const newText = editor.value.trim();
-          saveRemark(bookId, newText);
-          remarkContainer.innerHTML = "";
-          textSpan.textContent = newText;
-          remarkContainer.appendChild(label);
-          remarkContainer.appendChild(textSpan);
-        };
+      container.addEventListener('click', () => {
+        if (container.querySelector('textarea')) return; // already editing
+        renderEdit();
+      });
 
-        editor.onblur = finishEdit;
-        editor.onkeydown = (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            editor.blur();
-          }
-          if (e.key === 'Escape') {
-            remarkContainer.innerHTML = "";
-            remarkContainer.appendChild(label);
-            remarkContainer.appendChild(textSpan);
-          }
-        };
-      };
+      renderDisplay();
 
-      // 找到插入位置：通常在作者/出版社資訊下方
       const contributorBox = detailContent.querySelector('.item-contributor-box') || detailContent.lastElementChild;
-      contributorBox.after(remarkContainer);
+      contributorBox.after(container);
 
-      // --- 新增：處理清單中的「移除」按鈕 ---
       const removeBtn = item.querySelector('.btn-remove');
       if (removeBtn && !removeBtn.dataset.tehObserved) {
-        removeBtn.dataset.tehObserved = "true";
-        removeBtn.addEventListener('click', () => {
-          saveRemark(bookId, "");
-        });
+        removeBtn.dataset.tehObserved = 'true';
+        removeBtn.addEventListener('click', () => saveWishlistData(bookId, '', []));
       }
     });
   }
@@ -288,22 +453,18 @@
       const pointsNeeded = Math.ceil(price / maxPricePerToken);
       const tokenCost = pointsNeeded * costPerToken;
 
-      // 定義所有折扣選項
       const options = [
-        { id: 'd75', label: '75折', cost: Math.round(price * 0.75), display: `75折: ${Math.round(price * 0.75)}` },
-        { id: 'd80', label: '8折', cost: Math.round(price * 0.80), display: `8折: ${Math.round(price * 0.80)}` },
-        { id: 'm50', label: '-50', cost: Math.max(0, price - 50), display: `-50: ${Math.max(0, price - 50)}` }
+        { id: 'd75',   label: '75折',  cost: Math.round(price * 0.75), display: `75折: ${Math.round(price * 0.75)}` },
+        { id: 'd80',   label: '8折',   cost: Math.round(price * 0.80), display: `8折: ${Math.round(price * 0.80)}` },
+        { id: 'm50',   label: '-50',   cost: Math.max(0, price - 50),  display: `-50: ${Math.max(0, price - 50)}` }
       ];
 
-      // 僅在適用時加入領書額度選項
       if (info.isTokenApplicable !== false) {
         options.push({ id: 'token', label: `領書額度 ${pointsNeeded} 點`, cost: tokenCost, display: `領書額度 ${pointsNeeded} 點` });
       }
 
-      // 找出最划算的選項 (cost 最低者)
       const bestOption = options.reduce((prev, curr) => (prev.cost <= curr.cost ? prev : curr));
 
-      // 建立組件
       const container = document.createElement('div');
       container.className = 'teh-price-helper-container';
 
@@ -329,24 +490,19 @@
       container.appendChild(button);
       container.appendChild(dropdown);
 
-      // 點擊事件
       button.addEventListener('click', (e) => {
         e.stopPropagation();
         const isActive = container.classList.contains('teh-active');
-        // 先關閉頁面上其他的選單
         document.querySelectorAll('.teh-price-helper-container').forEach(el => el.classList.remove('teh-active'));
-        if (!isActive) {
-          container.classList.add('teh-active');
-        }
+        if (!isActive) container.classList.add('teh-active');
       });
 
       info.container.appendChild(container);
     } catch (e) {
-      console.error("[TEH] Price injection error:", e);
+      console.error('[TEH] Price injection error:', e);
     }
   }
 
-  // 點擊外部關閉選單
   document.addEventListener('click', () => {
     document.querySelectorAll('.teh-price-helper-container.teh-active').forEach(el => {
       el.classList.remove('teh-active');
@@ -360,34 +516,27 @@
 
       const targets = site.getBlacklistTargets(document);
 
-      // 1. 處理頁面層級 (Global)
       if (targets.global) {
         if (targets.global.publishers) {
           targets.global.publishers.forEach(el => {
             const text = Array.from(el.childNodes)
               .filter(n => n.nodeType === Node.TEXT_NODE)
               .map(n => n.textContent.trim())
-              .join("")
-              .trim();
-
+              .join('').trim();
             applyStyles(el, text, 'publisher');
           });
         }
-
         if (targets.global.authors) {
           targets.global.authors.forEach(el => {
             const text = Array.from(el.childNodes)
               .filter(n => n.nodeType === Node.TEXT_NODE)
               .map(n => n.textContent.trim())
-              .join("")
-              .trim();
-
+              .join('').trim();
             applyStyles(el, text, 'author');
           });
         }
       }
 
-      // 2. 處理區塊層級 (Blocks)
       if (targets.blocks) {
         targets.blocks.forEach(config => {
           const blocks = document.querySelectorAll(config.selector);
@@ -401,20 +550,15 @@
                 if (applyStyles(el, text, 'publisher')) isAnyBlacklisted = true;
               });
             }
-
             if (els.authors) {
               els.authors.forEach(el => {
                 const text = el.innerText.trim();
                 if (applyStyles(el, text, 'author')) isAnyBlacklisted = true;
               });
             }
-
             if (els.title) {
-              if (isAnyBlacklisted) {
-                els.title.classList.add('teh-blacklisted-title');
-              } else {
-                els.title.classList.remove('teh-blacklisted-title');
-              }
+              if (isAnyBlacklisted) els.title.classList.add('teh-blacklisted-title');
+              else els.title.classList.remove('teh-blacklisted-title');
             }
           });
         });
@@ -422,11 +566,9 @@
     } catch (e) {}
   }
 
-  // 回傳是否被列入黑名單 (統一使用容器標記法)
   function applyStyles(el, text, type) {
     if (!text) return false;
 
-    // 優先檢查黑名單
     if (cachedLists.black[type].includes(text)) {
       el.classList.add('teh-blacklisted-text');
       el.classList.remove('teh-whitelisted-text');
@@ -435,7 +577,6 @@
 
     el.classList.remove('teh-blacklisted-text');
 
-    // 檢查優良名單
     if (cachedLists.white[type].includes(text)) {
       el.classList.add('teh-whitelisted-text');
     } else {

@@ -251,3 +251,108 @@
   color: #ffffff !important;
 }
 
+/* 待購清單 tag 顯示 */
+.teh-wishlist-tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.teh-wishlist-tag-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  background: rgba(26, 115, 232, 0.1);
+  color: #1a73e8;
+  border-radius: 10px;
+  font-size: 0.78em;
+}
+
+/* 待購清單編輯動作列 */
+.teh-wishlist-edit-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* 待購清單 tag chip input */
+.teh-tag-chip-input {
+  margin-top: 4px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: white;
+  min-height: 36px;
+}
+
+.teh-tag-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.teh-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-radius: 10px;
+  font-size: 0.82em;
+  white-space: nowrap;
+}
+
+.teh-tag-chip button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  line-height: 1;
+  font-size: 1em;
+  opacity: 0.7;
+}
+
+.teh-tag-chip button:hover { opacity: 1; }
+
+.teh-tag-text-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 0.85em;
+  min-width: 80px;
+  color: #333;
+  font-family: inherit;
+}
+
+.teh-tag-autocomplete {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  font-size: 0.85em;
+  color: #333;
+}
+
+.teh-tag-autocomplete li {
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.teh-tag-autocomplete li:hover,
+.teh-tag-autocomplete li.highlighted { background: #e8f0fe; color: #1a73e8; }
+
+.teh-remark-tag-label {
+  display: block;
+  font-size: 0.82em;
+  color: #666;
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+

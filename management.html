@@ -32,6 +32,15 @@
           </button>
         </div>
         <div class="nav-group">
+          <div class="nav-group-title">🏷️ 標籤管理</div>
+          <button class="nav-item" data-target="section-list-tags">
+            📋 名單標籤
+          </button>
+          <button class="nav-item" data-target="section-wishlist-tags">
+            📚 待購清單標籤
+          </button>
+        </div>
+        <div class="nav-group">
           <div class="nav-group-title">🛠️ 系統工具</div>
           <button class="nav-item" data-target="section-system">
             💾 資料備份與還原
@@ -39,7 +48,7 @@
         </div>
       </nav>
       <div class="sidebar-footer">
-        <p class="version">v0.1.0</p>
+        <p class="version">v0.2.0</p>
       </div>
     </aside>
 
@@ -107,6 +116,24 @@
           </div>
         </div>
         <ul id="white-author-list" class="list"></ul>
+      </section>
+
+      <!-- 名單標籤管理 -->
+      <section id="section-list-tags" class="config-section">
+        <header class="section-header">
+          <h2>🏷️ 名單標籤</h2>
+          <p class="description">管理黑名單與優良名單中使用的標籤。可以重命名或刪除標籤，操作會套用至所有使用該標籤的條目。</p>
+        </header>
+        <div id="list-tag-manager" class="input-card"></div>
+      </section>
+
+      <!-- 待購清單標籤管理 -->
+      <section id="section-wishlist-tags" class="config-section">
+        <header class="section-header">
+          <h2>🏷️ 待購清單標籤</h2>
+          <p class="description">管理待購清單中書籍的標籤。</p>
+        </header>
+        <div id="wishlist-tag-manager" class="input-card"></div>
       </section>
 
       <!-- 系統管理 -->

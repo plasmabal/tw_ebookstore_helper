@@ -1,31 +1,38 @@
 {
+  "schemaVersion": "0.2.0",
   "publisherBlacklist": [
     {
       "name": "典石成金工作室",
-      "note": "測試資料"
+      "note": "測試資料",
+      "tags": ["爛翻譯"]
     }
   ],
   "authorBlacklist": [
     {
       "name": "林熹",
-      "note": "測試資料"
+      "note": "測試資料",
+      "tags": []
     },
     {
       "name": "九把刀",
-      "note": "測試資料 (books.com.tw / Kobo)"
+      "note": "測試資料 (books.com.tw / Kobo)",
+      "tags": ["台灣作者"]
     }
   ],
   "publisherWhitelist": [
     {
       "name": "獨步文化",
-      "note": ""
+      "note": "",
+      "tags": ["奇幻", "科幻"]
     }
   ],
   "authorWhitelist": [
     {
       "name": "布蘭登．山德森",
-      "note": "山神～"
+      "note": "山神～",
+      "tags": ["奇幻", "史詩"]
     }
   ],
-  "wishlistRemarks": {}
+  "wishlistRemarks": {},
+  "wishlistTags": {}
 }

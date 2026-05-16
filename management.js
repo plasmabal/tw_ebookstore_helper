@@ -1,163 +1,605 @@
-// Tab elements
+// --- Constants & Shared State ---
+
+const LIST_KEYS = ['publisherBlacklist', 'authorBlacklist', 'publisherWhitelist', 'authorWhitelist'];
+const SCHEMA_VERSIONS = ['0.1.0', '0.2.0'];
+const CURRENT_SCHEMA = '0.2.0';
+
+// Shared tag pool - mutated in loadSettings(), read by createTagChipInput()
+let listTagPool = [];
+
+// --- DOM References ---
+
 const navItems = document.querySelectorAll('.nav-item');
 const configSections = document.querySelectorAll('.config-section');
 
-// Blacklist elements
-const pubInput = document.getElementById('pub-input');
-const pubNote = document.getElementById('pub-note');
-const authorInput = document.getElementById('author-input');
-const authorNote = document.getElementById('author-note');
-const pubList = document.getElementById('pub-list');
-const authorList = document.getElementById('author-list');
+// --- Tab Switching Logic ---
 
-// Whitelist elements
-const whitePubInput = document.getElementById('white-pub-input');
-const whitePubNote = document.getElementById('white-pub-note');
-const whiteAuthorInput = document.getElementById('white-author-input');
-const whiteAuthorNote = document.getElementById('white-author-note');
-const whitePubList = document.getElementById('white-pub-list');
-const whiteAuthorList = document.getElementById('white-author-list');
-
-// Tab Switching Logic
 navItems.forEach(item => {
   item.onclick = () => {
     const targetId = item.getAttribute('data-target');
 
-    // Update active nav item
     navItems.forEach(nav => nav.classList.remove('active'));
     item.classList.add('active');
 
-    // Update active section
     configSections.forEach(section => {
       section.classList.remove('active');
-      if (section.id === targetId) {
-        section.classList.add('active');
-      }
+      if (section.id === targetId) section.classList.add('active');
     });
+
+    if (targetId === 'section-list-tags') loadListTagManager();
+    if (targetId === 'section-wishlist-tags') loadWishlistTagManager();
   };
 });
 
-// Load data with migration support
+// --- Migration System ---
+
+const MIGRATIONS = {
+  '0.2.0': () => new Promise((resolve) => {
+    chrome.storage.local.get([...LIST_KEYS, 'wishlistTags'], (res) => {
+      const updates = {};
+      LIST_KEYS.forEach(key => {
+        if (Array.isArray(res[key])) {
+          updates[key] = res[key].map(item => ({ ...item, tags: item.tags || [] }));
+        }
+      });
+      if (!res.wishlistTags) updates.wishlistTags = {};
+      chrome.storage.local.set(updates, resolve);
+    });
+  })
+};
+
+function runMigrations() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['schemaVersion'], (res) => {
+      const current = res.schemaVersion || '0.1.0';
+      const currentIdx = SCHEMA_VERSIONS.indexOf(current);
+      // If version is unknown (future), don't run any migrations
+      const startIdx = currentIdx === -1 ? SCHEMA_VERSIONS.length : currentIdx + 1;
+      const pending = SCHEMA_VERSIONS.slice(startIdx);
+
+      const runNext = (i) => {
+        if (i >= pending.length) {
+          chrome.storage.local.set({ schemaVersion: CURRENT_SCHEMA }, resolve);
+          return;
+        }
+        MIGRATIONS[pending[i]]().then(() => runNext(i + 1));
+      };
+      runNext(0);
+    });
+  });
+}
+
+// --- Settings Loading ---
+
 function loadSettings() {
-  chrome.storage.local.get([
-    'publisherBlacklist', 'authorBlacklist',
-    'publisherWhitelist', 'authorWhitelist'
-  ], (res) => {
-    const pubBlack = migrateData(res.publisherBlacklist || []);
-    const authorBlack = migrateData(res.authorBlacklist || []);
-    const pubWhite = migrateData(res.publisherWhitelist || []);
-    const authorWhite = migrateData(res.authorWhitelist || []);
+  chrome.storage.local.get(LIST_KEYS, (res) => {
+    const pubBlack  = res.publisherBlacklist || [];
+    const authorBlack = res.authorBlacklist  || [];
+    const pubWhite  = res.publisherWhitelist || [];
+    const authorWhite = res.authorWhitelist  || [];
 
-    renderList(pubList, pubBlack, 'publisherBlacklist');
-    renderList(authorList, authorBlack, 'authorBlacklist');
-    renderList(whitePubList, pubWhite, 'publisherWhitelist');
-    renderList(whiteAuthorList, authorWhite, 'authorWhitelist');
+    // Rebuild shared tag pool from all list items
+    const allTags = new Set();
+    [...pubBlack, ...authorBlack, ...pubWhite, ...authorWhite].forEach(item => {
+      (item.tags || []).forEach(t => allTags.add(t));
+    });
+    listTagPool.splice(0, listTagPool.length, ...allTags);
 
-    // Update counts
-    document.getElementById('count-pub-black').textContent = pubBlack.length;
+    renderList(document.getElementById('pub-list'),        pubBlack,   'publisherBlacklist');
+    renderList(document.getElementById('author-list'),     authorBlack, 'authorBlacklist');
+    renderList(document.getElementById('white-pub-list'),  pubWhite,   'publisherWhitelist');
+    renderList(document.getElementById('white-author-list'), authorWhite, 'authorWhitelist');
+
+    document.getElementById('count-pub-black').textContent   = pubBlack.length;
     document.getElementById('count-author-black').textContent = authorBlack.length;
-    document.getElementById('count-pub-white').textContent = pubWhite.length;
+    document.getElementById('count-pub-white').textContent   = pubWhite.length;
     document.getElementById('count-author-white').textContent = authorWhite.length;
   });
 }
 
-// Convert old string array to object array if needed
-function migrateData(list) {
-  if (list.length > 0 && typeof list[0] === 'string') {
-    return list.map(item => ({ name: item, note: '' }));
+// --- Tag Chip Input Component ---
+
+function createTagChipInput(initialTags = []) {
+  const tags = [...initialTags];
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tag-chip-input-wrapper';
+
+  const chipsRow = document.createElement('div');
+  chipsRow.className = 'tag-chips-row';
+
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.className = 'tag-text-input';
+  textInput.placeholder = '新增標籤 (Enter 確認)…';
+  textInput.maxLength = 20;
+
+  const dropdown = document.createElement('ul');
+  dropdown.className = 'tag-autocomplete-dropdown';
+  dropdown.style.display = 'none';
+
+  function renderChips() {
+    chipsRow.innerHTML = '';
+    tags.forEach((tag, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip';
+
+      const label = document.createElement('span');
+      label.textContent = tag;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tag-chip-remove';
+      removeBtn.setAttribute('aria-label', `移除 ${tag}`);
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        tags.splice(i, 1);
+        renderChips();
+      });
+
+      chip.appendChild(label);
+      chip.appendChild(removeBtn);
+      chipsRow.appendChild(chip);
+    });
+    chipsRow.appendChild(textInput);
   }
-  return list;
+
+  function addTag(value) {
+    const tag = value.trim().slice(0, 20);
+    if (!tag || tags.includes(tag)) { textInput.value = ''; return; }
+    tags.push(tag);
+    renderChips();
+    textInput.value = '';
+    hideDropdown();
+    textInput.focus();
+  }
+
+  let highlightedIdx = -1;
+
+  function showDropdown(query) {
+    if (!query) { hideDropdown(); return; }
+    const q = query.toLowerCase();
+    const suggestions = listTagPool
+      .filter(t => t.toLowerCase().includes(q) && !tags.includes(t))
+      .slice(0, 8);
+
+    if (!suggestions.length) { hideDropdown(); return; }
+
+    highlightedIdx = -1;
+    dropdown.innerHTML = '';
+    suggestions.forEach(tag => {
+      const li = document.createElement('li');
+      li.textContent = tag;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault(); // prevent blur before click
+        addTag(tag);
+      });
+      dropdown.appendChild(li);
+    });
+    dropdown.style.display = 'block';
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    highlightedIdx = -1;
+  }
+
+  function updateHighlight() {
+    dropdown.querySelectorAll('li').forEach((li, i) => {
+      li.classList.toggle('highlighted', i === highlightedIdx);
+    });
+  }
+
+  textInput.addEventListener('input', () => showDropdown(textInput.value));
+  textInput.addEventListener('blur', hideDropdown);
+  textInput.addEventListener('keydown', (e) => {
+    const isOpen = dropdown.style.display !== 'none';
+    const items  = dropdown.querySelectorAll('li');
+
+    if (isOpen && e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1);
+      updateHighlight();
+      return;
+    }
+    if (isOpen && e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlightedIdx = Math.max(highlightedIdx - 1, -1);
+      updateHighlight();
+      return;
+    }
+    if (e.key === 'Escape') {
+      hideDropdown();
+      return;
+    }
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      if (isOpen && highlightedIdx >= 0) {
+        addTag(items[highlightedIdx].textContent);
+      } else {
+        addTag(textInput.value);
+      }
+    } else if (e.key === 'Backspace' && !textInput.value && tags.length > 0) {
+      tags.pop();
+      renderChips();
+    }
+  });
+
+  renderChips();
+  wrapper.appendChild(chipsRow);
+  wrapper.appendChild(dropdown);
+
+  wrapper.getTags = () => [...tags];
+  wrapper.reset = () => { tags.splice(0); renderChips(); textInput.value = ''; };
+
+  return wrapper;
 }
+
+// --- List Rendering ---
 
 function renderList(container, items, storageKey) {
   container.innerHTML = '';
   items.forEach((item, index) => {
     const li = document.createElement('li');
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'item-content';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'item-name';
-    nameSpan.textContent = item.name;
-    contentDiv.appendChild(nameSpan);
-
-    if (item.note) {
-      const noteSpan = document.createElement('span');
-      noteSpan.className = 'item-note';
-      noteSpan.textContent = item.note;
-      contentDiv.appendChild(noteSpan);
-    }
-
-    const delBtn = document.createElement('button');
-    delBtn.innerHTML = '🗑️';
-    delBtn.className = 'delete-btn';
-    delBtn.title = '刪除';
-    delBtn.onclick = () => {
-      items.splice(index, 1);
-      chrome.storage.local.set({ [storageKey]: items }, loadSettings);
-    };
-
-    li.appendChild(contentDiv);
-    li.appendChild(delBtn);
+    li.appendChild(buildDisplayRow(item, index, items, storageKey, li));
     container.appendChild(li);
   });
 }
 
-// Bind handlers
-function setupHandlers(input, note, button, storageKey) {
-  button.onclick = () => addItem(input, note, storageKey);
-  input.onkeypress = (e) => { if (e.key === 'Enter') addItem(input, note, storageKey); };
-  note.onkeypress = (e) => { if (e.key === 'Enter') addItem(input, note, storageKey); };
+function buildDisplayRow(item, index, items, storageKey, li) {
+  const row = document.createElement('div');
+  row.className = 'item-display-row';
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'item-content';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'item-name';
+  nameSpan.textContent = item.name;
+  contentDiv.appendChild(nameSpan);
+
+  if (item.note) {
+    const noteSpan = document.createElement('span');
+    noteSpan.className = 'item-note';
+    noteSpan.textContent = item.note;
+    contentDiv.appendChild(noteSpan);
+  }
+
+  if (item.tags && item.tags.length > 0) {
+    const tagsDiv = document.createElement('div');
+    tagsDiv.className = 'item-tags';
+    item.tags.forEach(tag => {
+      const chip = document.createElement('span');
+      chip.className = 'item-tag-chip';
+      chip.textContent = tag;
+      tagsDiv.appendChild(chip);
+    });
+    contentDiv.appendChild(tagsDiv);
+  }
+
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'item-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'edit-btn';
+  editBtn.title = '編輯';
+  editBtn.textContent = '✏️';
+  editBtn.onclick = () => {
+    li.innerHTML = '';
+    li.appendChild(buildEditRow(item, index, items, storageKey, li));
+  };
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'delete-btn';
+  delBtn.title = '刪除';
+  delBtn.innerHTML = '🗑️';
+  delBtn.onclick = () => {
+    items.splice(index, 1);
+    chrome.storage.local.set({ [storageKey]: items }, loadSettings);
+  };
+
+  actionsDiv.appendChild(editBtn);
+  actionsDiv.appendChild(delBtn);
+  row.appendChild(contentDiv);
+  row.appendChild(actionsDiv);
+
+  return row;
 }
 
-function addItem(input, note, storageKey) {
-  const name = input.value.trim();
+function buildEditRow(item, index, items, storageKey, li) {
+  const row = document.createElement('div');
+  row.className = 'item-edit-row';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'edit-name-input';
+  nameInput.value = item.name;
+  nameInput.placeholder = '名稱 (必填)';
+
+  const noteTextarea = document.createElement('textarea');
+  noteTextarea.className = 'edit-note-textarea';
+  noteTextarea.value = item.note || '';
+  noteTextarea.placeholder = '備註 (選填)';
+  noteTextarea.rows = 3;
+
+  const tagInput = createTagChipInput(item.tags || []);
+
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'edit-actions';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-save-edit';
+  saveBtn.textContent = '儲存';
+  saveBtn.onclick = () => {
+    const newName = nameInput.value.trim();
+    if (!newName) return;
+    items[index] = { name: newName, note: noteTextarea.value.trim(), tags: tagInput.getTags() };
+    chrome.storage.local.set({ [storageKey]: items }, loadSettings);
+  };
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-cancel-edit';
+  cancelBtn.textContent = '取消';
+  cancelBtn.onclick = () => {
+    li.innerHTML = '';
+    li.appendChild(buildDisplayRow(item, index, items, storageKey, li));
+  };
+
+  actionsDiv.appendChild(saveBtn);
+  actionsDiv.appendChild(cancelBtn);
+
+  row.appendChild(nameInput);
+  row.appendChild(noteTextarea);
+  row.appendChild(tagInput);
+  row.appendChild(actionsDiv);
+
+  nameInput.focus();
+  return row;
+}
+
+// --- Add Item Handlers ---
+
+function setupSection(inputId, noteId, buttonId, storageKey) {
+  const input  = document.getElementById(inputId);
+  const note   = document.getElementById(noteId);
+  const button = document.getElementById(buttonId);
+
+  const tagInput = createTagChipInput();
+  button.before(tagInput);
+
+  const doAdd = () => addItem(input, note, tagInput, storageKey);
+  button.onclick = doAdd;
+  input.addEventListener('keypress', (e) => { if (e.key === 'Enter') doAdd(); });
+  note.addEventListener('keypress',  (e) => { if (e.key === 'Enter') doAdd(); });
+}
+
+function addItem(input, note, tagInput, storageKey) {
+  const name    = input.value.trim();
   const noteVal = note.value.trim();
+  const tags    = tagInput.getTags();
   if (!name) return;
 
   chrome.storage.local.get([storageKey], (res) => {
-    const list = migrateData(res[storageKey] || []);
+    const list = res[storageKey] || [];
     if (!list.some(i => i.name === name)) {
-      list.push({ name, note: noteVal });
+      list.push({ name, note: noteVal, tags });
       chrome.storage.local.set({ [storageKey]: list }, () => {
         input.value = '';
-        note.value = '';
+        note.value  = '';
+        tagInput.reset();
         loadSettings();
       });
     }
   });
 }
 
-setupHandlers(pubInput, pubNote, document.getElementById('add-pub'), 'publisherBlacklist');
-setupHandlers(authorInput, authorNote, document.getElementById('add-author'), 'authorBlacklist');
-setupHandlers(whitePubInput, whitePubNote, document.getElementById('add-white-pub'), 'publisherWhitelist');
-setupHandlers(whiteAuthorInput, whiteAuthorNote, document.getElementById('add-white-author'), 'authorWhitelist');
+setupSection('pub-input',        'pub-note',        'add-pub',        'publisherBlacklist');
+setupSection('author-input',     'author-note',     'add-author',     'authorBlacklist');
+setupSection('white-pub-input',  'white-pub-note',  'add-white-pub',  'publisherWhitelist');
+setupSection('white-author-input', 'white-author-note', 'add-white-author', 'authorWhitelist');
 
-// --- Backup and Restore Logic ---
+// --- Tag Manager ---
+
+function loadListTagManager() {
+  const el = document.getElementById('list-tag-manager');
+  if (!el) return;
+
+  chrome.storage.local.get(LIST_KEYS, (res) => {
+    const tagCounts = {};
+    LIST_KEYS.forEach(key => {
+      (res[key] || []).forEach(item => {
+        (item.tags || []).forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      });
+    });
+    renderTagManagerContent(el, tagCounts, renameListTag, deleteListTag);
+  });
+}
+
+function loadWishlistTagManager() {
+  const el = document.getElementById('wishlist-tag-manager');
+  if (!el) return;
+
+  chrome.storage.local.get(['wishlistTags'], (res) => {
+    const tagCounts = {};
+    Object.values(res.wishlistTags || {}).forEach(tags => {
+      (tags || []).forEach(tag => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    });
+    renderTagManagerContent(el, tagCounts, renameWishlistTag, deleteWishlistTag);
+  });
+}
+
+function renderTagManagerContent(containerEl, tagCounts, onRename, onDelete) {
+  containerEl.innerHTML = '';
+  const tags = Object.keys(tagCounts).sort();
+
+  if (tags.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'tag-manager-empty';
+    p.textContent = '尚無標籤。在新增條目時可加入標籤。';
+    containerEl.appendChild(p);
+    return;
+  }
+
+  const ul = document.createElement('ul');
+  ul.className = 'tag-manager-list';
+
+  tags.forEach(tag => {
+    const li = document.createElement('li');
+    li.className = 'tag-manager-item';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'tag-manager-name';
+    nameSpan.textContent = tag;
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'tag-manager-count';
+    countSpan.textContent = `${tagCounts[tag]} 個條目`;
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn-tag-rename';
+    renameBtn.textContent = '重命名';
+    renameBtn.onclick = () => startInlineRename(li, tag, nameSpan, renameBtn, deleteBtn, onRename);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn-tag-delete';
+    deleteBtn.textContent = '刪除';
+    deleteBtn.onclick = () => {
+      if (confirm(`確定要刪除標籤「${tag}」？\n此標籤將從所有 ${tagCounts[tag]} 個條目中移除。`)) {
+        onDelete(tag);
+      }
+    };
+
+    li.appendChild(nameSpan);
+    li.appendChild(countSpan);
+    li.appendChild(renameBtn);
+    li.appendChild(deleteBtn);
+    ul.appendChild(li);
+  });
+
+  containerEl.appendChild(ul);
+}
+
+function startInlineRename(li, oldTag, nameSpan, renameBtn, deleteBtn, onRename) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tag-rename-input';
+  input.value = oldTag;
+  input.maxLength = 20;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn-tag-rename-confirm';
+  confirmBtn.textContent = '確認';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-tag-rename-cancel';
+  cancelBtn.textContent = '取消';
+
+  const doRename = () => {
+    const newTag = input.value.trim();
+    if (!newTag || newTag === oldTag) { restoreDisplay(); return; }
+    onRename(oldTag, newTag);
+  };
+
+  const restoreDisplay = () => {
+    input.replaceWith(nameSpan);
+    confirmBtn.remove();
+    cancelBtn.remove();
+    renameBtn.style.display = '';
+    deleteBtn.style.display = '';
+  };
+
+  confirmBtn.onclick = doRename;
+  cancelBtn.onclick  = restoreDisplay;
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  doRename();
+    if (e.key === 'Escape') restoreDisplay();
+  });
+
+  nameSpan.replaceWith(input);
+  renameBtn.style.display = 'none';
+  deleteBtn.style.display = 'none';
+  li.appendChild(confirmBtn);
+  li.appendChild(cancelBtn);
+  input.focus();
+  input.select();
+}
+
+function renameListTag(oldTag, newTag) {
+  chrome.storage.local.get(LIST_KEYS, (res) => {
+    const updates = {};
+    LIST_KEYS.forEach(key => {
+      updates[key] = (res[key] || []).map(item => ({
+        ...item,
+        tags: (item.tags || []).map(t => t === oldTag ? newTag : t)
+      }));
+    });
+    chrome.storage.local.set(updates, () => {
+      loadSettings();
+      loadListTagManager();
+    });
+  });
+}
+
+function deleteListTag(tag) {
+  chrome.storage.local.get(LIST_KEYS, (res) => {
+    const updates = {};
+    LIST_KEYS.forEach(key => {
+      updates[key] = (res[key] || []).map(item => ({
+        ...item,
+        tags: (item.tags || []).filter(t => t !== tag)
+      }));
+    });
+    chrome.storage.local.set(updates, () => {
+      loadSettings();
+      loadListTagManager();
+    });
+  });
+}
+
+function renameWishlistTag(oldTag, newTag) {
+  chrome.storage.local.get(['wishlistTags'], (res) => {
+    const updated = {};
+    Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
+      updated[bookId] = (tags || []).map(t => t === oldTag ? newTag : t);
+    });
+    chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
+  });
+}
+
+function deleteWishlistTag(tag) {
+  chrome.storage.local.get(['wishlistTags'], (res) => {
+    const updated = {};
+    Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
+      updated[bookId] = (tags || []).filter(t => t !== tag);
+    });
+    chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
+  });
+}
+
+// --- Backup and Restore ---
 
 function exportData() {
   chrome.storage.local.get(null, (res) => {
-    // 雖然 get(null) 會抓取所有資料，我們仍可明確過濾需要的鍵值以防未來有不必要的快取也被匯出
-    const keysToExport = [
-      'publisherBlacklist', 'authorBlacklist',
-      'publisherWhitelist', 'authorWhitelist',
-      'wishlistRemarks'
-    ];
-
+    const keysToExport = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'schemaVersion'];
     const exportObj = {};
     keysToExport.forEach(key => {
-      if (res[key]) exportObj[key] = res[key];
+      if (res[key] !== undefined) exportObj[key] = res[key];
     });
 
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const url  = URL.createObjectURL(blob);
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const timeStr = date.toTimeString().slice(0, 5).replace(/:/g, '');
 
     const a = document.createElement('a');
-    a.href = url;
+    a.href     = url;
     a.download = `teh_backup_${dateStr}_${timeStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
@@ -172,43 +614,46 @@ function handleImport(file) {
     try {
       const data = JSON.parse(e.target.result);
 
-      // 深度結構驗證
-      const validKeys = [
-        'publisherBlacklist', 'authorBlacklist',
-        'publisherWhitelist', 'authorWhitelist',
-        'wishlistRemarks'
-      ];
-
       const validateList = (list) => {
         if (!list) return true;
         if (!Array.isArray(list)) return false;
-        return list.every(item => typeof item === 'string' || (item && typeof item === 'object' && 'name' in item));
+        return list.every(item => item && typeof item === 'object' && 'name' in item);
       };
 
-      if (!validateList(data.publisherBlacklist) ||
-          !validateList(data.authorBlacklist) ||
-          !validateList(data.publisherWhitelist) ||
-          !validateList(data.authorWhitelist)) {
-        alert('❌ 錯誤：備份檔案結構損壞 (陣列格式不符)。');
+      for (const key of LIST_KEYS) {
+        if (!validateList(data[key])) {
+          alert(`❌ 錯誤：備份檔案結構損壞 (${key} 格式不符)。`);
+          return;
+        }
+      }
+
+      if (data.wishlistRemarks !== undefined &&
+          (typeof data.wishlistRemarks !== 'object' || Array.isArray(data.wishlistRemarks))) {
+        alert('❌ 錯誤：備份檔案結構損壞 (wishlistRemarks 格式不符)。');
         return;
       }
 
-
-      if (data.wishlistRemarks && typeof data.wishlistRemarks !== 'object') {
-        alert('❌ 錯誤：備份檔案結構損壞 (備註格式不符)。');
+      if (data.wishlistTags !== undefined &&
+          (typeof data.wishlistTags !== 'object' || Array.isArray(data.wishlistTags))) {
+        alert('❌ 錯誤：備份檔案結構損壞 (wishlistTags 格式不符)。');
         return;
       }
 
-      const hasValidData = validKeys.some(key => data.hasOwnProperty(key));
-      if (!hasValidData) {
+      const validKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags'];
+      if (!validKeys.some(key => key in data)) {
         alert('❌ 錯誤：此檔案不包含有效的備份資料。');
         return;
       }
 
       if (confirm('⚠️ 注意：還原將會完全覆蓋現有的名單與備註資料！\n確定要繼續嗎？')) {
         chrome.storage.local.set(data, () => {
-          alert('✅ 資料還原成功！');
-          loadSettings(); // 重新整理 UI
+          // Remove schemaVersion so migrations re-run on imported data
+          chrome.storage.local.remove('schemaVersion', () => {
+            runMigrations().then(() => {
+              alert('✅ 資料還原成功！');
+              loadSettings();
+            });
+          });
         });
       }
     } catch (err) {
@@ -219,47 +664,43 @@ function handleImport(file) {
   reader.readAsText(file);
 }
 
-// Bind System Handlers
+// --- Bind System Handlers ---
+
 document.getElementById('export-btn').onclick = exportData;
-const importBtn = document.getElementById('import-btn');
+const importBtn  = document.getElementById('import-btn');
 const importFile = document.getElementById('import-file');
 
 importBtn.onclick = () => importFile.click();
 importFile.onchange = (e) => {
   handleImport(e.target.files[0]);
-  e.target.value = ''; // 重設以便下次選取同一個檔案也能觸發
+  e.target.value = '';
 };
 
 // --- Drag and Drop Support ---
+
 const dropZone = document.getElementById('import-drop-zone');
 
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, false);
+  dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
 });
 
 ['dragenter', 'dragover'].forEach(eventName => {
-  dropZone.addEventListener(eventName, () => {
-    dropZone.classList.add('drag-over');
-  }, false);
+  dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
 });
 
 ['dragleave', 'drop'].forEach(eventName => {
-  dropZone.addEventListener(eventName, () => {
-    dropZone.classList.remove('drag-over');
-  }, false);
+  dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
 });
 
 dropZone.addEventListener('drop', (e) => {
-  const dt = e.dataTransfer;
-  const file = dt.files[0];
-  if (file && file.type === "application/json") {
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/json') {
     handleImport(file);
   } else if (file) {
     alert('❌ 錯誤：請提供有效的 JSON 備份檔案。');
   }
 }, false);
 
-loadSettings();
+// --- Init ---
+
+runMigrations().then(loadSettings);
