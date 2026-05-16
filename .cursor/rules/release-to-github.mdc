@@ -1,0 +1,58 @@
+---
+description: 發布新版本至 GitHub Release 與 Chrome Web Store 的完整流程
+globs: *
+---
+
+# 發布新版本 (release-to-github)
+
+當使用者要求「發布新版本」、「release」或「出版」時，請嚴格遵循以下步驟。
+
+**版號確認**：若使用者已提供版號（如 `/release 0.2.0`），直接使用。否則，先詢問目標版號再開始。
+
+---
+
+1. **執行測試**：先執行 `npm test`，確認所有測試通過。若有失敗，停止並回報，不繼續後續步驟。
+
+2. **更新 `manifest.json`**：將 `"version"` 欄位改為新版號。
+
+3. **更新 `package.json`**：將 `"version"` 欄位改為新版號，與 `manifest.json` 保持一致。
+
+4. **更新 `CHANGES.md`**：
+    * 將 `## [Upcoming Version]` 改為 `## [X.X.X] - YYYY-MM-DD`（使用今天的日期）。
+    * 在標題說明文字（`All notable changes...`）之後、新版號標題之前，插入空白佔位區供下一個版本使用：
+      ```
+      ## [Upcoming Version]
+      ### Added
+
+      ### Changed
+
+      ### Fixed
+
+      ```
+
+5. **Commit 版本升版**：
+    ```bash
+    git add manifest.json package.json CHANGES.md
+    git commit -m "chore: bump version to X.X.X"
+    ```
+
+6. **打包**：執行 `npm run build`，輸出 `release.zip`（build script 自動排除 tests、docs、node_modules 等）。
+
+7. **建立 GitHub Release 並 push**：
+    ```bash
+    git push origin main
+    gh release create X.X.X release.zip \
+      --title "vX.X.X" \
+      --notes "<CHANGES.md 中 ## [X.X.X] 區塊的 Added/Changed/Fixed 內容>"
+    ```
+    * Tag 格式為純版號（如 `0.2.0`，無 `v` 前綴），參考現有 `0.1.0`。
+    * `gh release create` 會自動建立 git tag，不需另外執行 `git tag`。
+    * Release notes 直接使用 CHANGES.md 對應版號區塊的內容。
+    * `release.zip` 作為 release asset 附加。
+
+8. **提示 Chrome Web Store 上架（手動步驟）**：
+    1. 前往 Chrome Web Store 開發者後台：https://chrome.google.com/webstore/devconsole
+    2. 選擇「Taiwan Ebookstore Helper」→「上傳新套件」
+    3. 選擇 `release.zip`
+    4. 更新說明欄貼上 CHANGES.md 對應版本的 Added/Changed/Fixed 條目
+    5. 送出審核

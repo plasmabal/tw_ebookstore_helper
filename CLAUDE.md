@@ -1,10 +1,50 @@
-# Taiwan Ebookstore Helper 指南 (Claude Code)
+# CLAUDE.md
 
-歡迎使用 Claude Code！為了確保專案的一致性與高品質，請在進行任何程式碼修改或測試前，務必優先閱讀並遵循以下知識庫文件：
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-1. **核心開發規範**：請閱讀 `GEMINI.md`。這是本專案的最高指導原則，包含了 DOM 解析策略、UI/UX 原則、Git 流程以及防範 XSS 的安全要求。
-2. **功能規格**：請閱讀 `docs/FEATURES.md`。記錄了每項功能的預期行為，修改或重構程式碼前務必對照，避免誤刪或誤改現有功能。
-3. **自動化測試知識庫**：請閱讀 `docs/Extension_Testing_Patterns.md`。裡面詳細記錄了專案如何使用 Puppeteer + Jest 進行 E2E 測試、無頭資料注入策略，以及如何避免 Flaky Tests。
-4. **執行測試 (Skill)**：若需要執行測試，請參考 `.cursor/rules/run_test.mdc` 的流程。
+## 知識庫文件（修改前必讀）
 
-請確保所有建議與修改均符合上述文件中的規範。
+為了確保專案的一致性與高品質，請在進行任何程式碼修改或測試前，務必優先閱讀並遵循以下文件：
+
+1. **核心開發規範**：`GEMINI.md` — DOM 解析策略、UI/UX 原則、Git 流程、XSS 防範要求。
+2. **功能規格**：`docs/FEATURES.md` — 每項功能的預期行為，**修改或重構前務必對照**，避免誤刪功能。
+3. **自動化測試知識庫**：`docs/Extension_Testing_Patterns.md` — Puppeteer + Jest E2E 測試策略。
+4. **執行測試 (Skill)**：若需執行測試，請參考 `.cursor/rules/run_test.mdc`。
+
+## 常用指令
+
+```bash
+npm test                                        # 執行所有測試
+npx jest --testPathPatterns="wishlist"          # 執行特定測試檔
+npx jest --testPathPatterns="wishlist" --no-coverage  # 執行但不產生 coverage 報告
+npm run build                                   # 打包 extension（產出 zip）
+```
+
+測試使用真實 Chromium + Extension，需要有網路連線（Readmoo、Kobo 的 E2E 測試會連線至真實網站）。博客來測試因 Cloudflare WAF 全部 skip。
+
+## 架構概覽
+
+這是一個 Manifest V3 Chrome Extension，**無 bundler、無 framework**，所有 JS 直接載入。
+
+```
+manifest.json          # 宣告 content scripts、permissions、options page
+sites.js               # 各平台 site config（偵測、選擇器、getPriceInfo）→ 定義 window.TEH
+content.js             # 主要 content script，注入所有 UI 功能
+management.js/html     # Options page（黑白名單 CRUD、Tag 管理、備份還原）
+popup.js/html          # 點擊 extension icon 的小視窗
+```
+
+**資料流**：`chrome.storage.local` ↔ `content.js` cachedLists ↔ DOM 注入  
+**跨頁同步**：`chrome.storage.onChanged` 讓已開啟的分頁即時更新
+
+**Storage schema（v0.2.0）**：
+- `publisherBlacklist / authorBlacklist / publisherWhitelist / authorWhitelist`：`[{ name, note, tags[] }]`
+- `wishlistRemarks`：`{ bookId: string }`
+- `wishlistTags`：`{ bookId: string[] }`
+- `schemaVersion`：`"0.2.0"`
+
+## 測試注意事項
+
+- Extension ID（hardcoded 於所有測試）：`mmmgehlnhopcejokbbdjblejkkbbahek`
+- Wishlist fixture 測試用 `page.evaluate(code)` 注入 content.js（繞過 MV3 CSP），**不可**改用 `page.addScriptTag({ path })`
+- 注入前需先設定 `window.TEH` mock，否則 content.js IIFE 會提早 return
