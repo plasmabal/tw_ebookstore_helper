@@ -37,6 +37,10 @@
 
         if (!ebookPrice) return null;
 
+        // 限時獨家優惠（不再適用其他優惠）不顯示折扣試算
+        const isExclusive = Array.from(doc.querySelectorAll('.promotion-rule')).some(el => el.innerText.includes('不再適用其他優惠'));
+        if (isExclusive) return null;
+
         // 偵測領書額度可用性
         const tokenBtn = Array.from(doc.querySelectorAll('button')).find(b => b.innerText.includes('領書額度兌換'));
         const isTokenApplicable = tokenBtn ? !tokenBtn.disabled : true;

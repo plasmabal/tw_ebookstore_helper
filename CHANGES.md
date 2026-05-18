@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 ### Fixed
+* **Readmoo 限時獨家優惠不顯示折扣試算**：當書籍詳情頁出現「不再適用其他優惠」的促銷說明時，自動略過價格試算 widget，避免誤導性的折扣建議。
 
 
 ## [0.2.0] - 2026-05-16
