@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
+* **待購清單 Tag 過濾**（Readmoo）：在待購清單頁面點擊書籍卡片上的標籤 chip，即可快速過濾出所有含相同標籤的書籍；頁面頂端出現篩選提示列，點擊「✕ 清除篩選」可恢復完整清單。
 
 ### Changed
 

@@ -10,6 +10,8 @@
     wishlistTagPool: []
   };
 
+  let activeTagFilter = null;
+
   // 初始化名單並監聽變動
   function initStorage() {
     if (!chrome.runtime?.id) return;
@@ -303,6 +305,44 @@
     textarea.focus();
   }
 
+  function getOrCreateFilterBadge() {
+    let badge = document.querySelector('.teh-tag-filter-badge');
+    if (badge) return badge;
+    badge = document.createElement('div');
+    badge.className = 'teh-tag-filter-badge';
+    badge.style.display = 'none';
+    const list = document.querySelector('ul.cart-list-item-list');
+    if (list) list.before(badge);
+    return badge;
+  }
+
+  function applyTagFilter(tag) {
+    activeTagFilter = tag;
+    document.querySelectorAll('li.cart-list-item[data-teh-book-id]').forEach(item => {
+      const tags = cachedLists.wishlistTags[item.dataset.tehBookId] || [];
+      item.classList.toggle('teh-filtered-out', !tags.includes(tag));
+    });
+    const badge = getOrCreateFilterBadge();
+    badge.innerHTML = '';
+    const label = document.createElement('span');
+    label.textContent = `🏷️ 篩選：${tag}`;
+    const clearBtn = document.createElement('button');
+    clearBtn.textContent = '✕ 清除篩選';
+    clearBtn.addEventListener('click', clearTagFilter);
+    badge.appendChild(label);
+    badge.appendChild(clearBtn);
+    badge.style.display = 'flex';
+  }
+
+  function clearTagFilter() {
+    activeTagFilter = null;
+    document.querySelectorAll('li.cart-list-item.teh-filtered-out').forEach(item => {
+      item.classList.remove('teh-filtered-out');
+    });
+    const badge = document.querySelector('.teh-tag-filter-badge');
+    if (badge) badge.style.display = 'none';
+  }
+
   function injectWishlistRemarks() {
     if (!chrome.runtime?.id) return;
     if (!window.location.hash.includes('#wishlist')) return;
@@ -351,6 +391,7 @@
       const m = coverLink.href.match(/\/book\/(\d+)/);
       if (!m) return;
       const bookId = m[1];
+      item.dataset.tehBookId = bookId;
 
       const detailContent = item.querySelector('.item-detail-content');
       if (!detailContent) return;
@@ -382,6 +423,10 @@
             const chip = document.createElement('span');
             chip.className = 'teh-wishlist-tag-chip';
             chip.textContent = tag;
+            chip.addEventListener('click', (e) => {
+              e.stopPropagation();
+              applyTagFilter(tag);
+            });
             tagsDiv.appendChild(chip);
           });
           container.appendChild(tagsDiv);
