@@ -163,6 +163,81 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect(remarkText).toBe('原始備註');
   });
 
+  test('7. 點擊 tag chip 應過濾清單，只顯示含相同 tag 的書籍', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }   // 67890 無 tag
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+
+    const chip = await page.$('.teh-wishlist-tag-chip');
+    await chip.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    // 12345 應可見（無 teh-filtered-out）
+    const item12345Filtered = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="12345"]',
+      el => el.classList.contains('teh-filtered-out')
+    );
+    expect(item12345Filtered).toBe(false);
+
+    // 67890 應被隱藏
+    const item67890Filtered = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="67890"]',
+      el => el.classList.contains('teh-filtered-out')
+    );
+    expect(item67890Filtered).toBe(true);
+
+    // Badge 應出現並顯示正確 tag
+    await page.waitForSelector('.teh-tag-filter-badge', { timeout: 3000 });
+    const badgeText = await page.$eval('.teh-tag-filter-badge span', el => el.textContent);
+    expect(badgeText).toContain('奇幻');
+  });
+
+  test('8. 點擊 badge 清除按鈕應恢復完整清單', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+
+    // 先過濾
+    const chip = await page.$('.teh-wishlist-tag-chip');
+    await chip.click();
+    await page.waitForSelector('.teh-tag-filter-badge', { timeout: 3000 });
+
+    // 點擊清除
+    const clearBtn = await page.$('.teh-tag-filter-badge button');
+    await clearBtn.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    // 兩本書都應恢復可見
+    const filteredItems = await page.$$('li.cart-list-item.teh-filtered-out');
+    expect(filteredItems.length).toBe(0);
+
+    // Badge 應隱藏
+    const badgeDisplay = await page.$eval('.teh-tag-filter-badge', el => el.style.display);
+    expect(badgeDisplay).toBe('none');
+  });
+
+  test('9. 點擊 tag chip 不應觸發備註編輯模式', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+
+    const chip = await page.$('.teh-wishlist-tag-chip');
+    await chip.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    const editor = await page.$('.teh-wishlist-remark-editor');
+    expect(editor).toBeNull();
+  });
+
   test('6. Auto-cleanup：不在清單中的書籍備註應被清除', async () => {
     await setStorage({
       wishlistRemarks: { '12345': '保留備註', '99999': '應被清除' },
