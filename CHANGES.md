@@ -4,9 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
-* **待購清單 Tag 過濾**（Readmoo）：在待購清單頁面點擊書籍卡片上的標籤 chip，即可快速過濾出所有含相同標籤的書籍；頁面頂端出現篩選提示列，點擊「✕ 清除篩選」可恢復完整清單。
 
 ### Changed
+
+### Fixed
+
+
+## [0.3.0] - 2026-05-26
+### Added
+* **待購清單 Tag 過濾**（Readmoo）：在待購清單頁面點擊書籍卡片上的標籤 chip，即可快速過濾出所有含相同標籤的書籍；頁面頂端出現篩選提示列，點擊「✕ 清除篩選」可恢復完整清單。
 
 ### Fixed
 * **Readmoo 限時獨家優惠不顯示折扣試算**：當書籍詳情頁出現「不再適用其他優惠」的促銷說明時，自動略過價格試算 widget，避免誤導性的折扣建議。
