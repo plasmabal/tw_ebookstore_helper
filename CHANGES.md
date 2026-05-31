@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
+* **自動關閉試讀提醒**（讀墨閱讀器）：在設定頁「網站設定 → 讀墨」開啟後，試讀時的「喜歡這本書嗎？加入購物車吧！」及「該讓眼睛休息一下囉！」對話框將自動被阻擋，不再打斷閱讀。
 
 ### Changed
 

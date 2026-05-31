@@ -9,6 +9,8 @@
   ],
   "host_permissions": [
     "https://readmoo.com/*",
+    "https://reader.readmoo.com/*",
+    "https://new-read.readmoo.com/*",
     "https://*.books.com.tw/*",
     "https://*.kobo.com/tw/*"
   ],
@@ -31,6 +33,27 @@
         "content.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://reader.readmoo.com/*"
+      ],
+      "js": [
+        "readmoo_reader_main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://reader.readmoo.com/*"
+      ],
+      "js": [
+        "readmoo_reader.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "icons": {

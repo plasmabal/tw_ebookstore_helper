@@ -28,6 +28,7 @@ navItems.forEach(item => {
 
     if (targetId === 'section-list-tags') loadListTagManager();
     if (targetId === 'section-wishlist-tags') loadWishlistTagManager();
+    if (targetId === 'section-readmoo') loadReadmooSettings();
   };
 });
 
@@ -585,6 +586,19 @@ function deleteWishlistTag(tag) {
     chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
   });
 }
+
+// --- Readmoo Reader Settings ---
+
+function loadReadmooSettings() {
+  chrome.storage.local.get(['readmooAutoClosePreviewDialog'], (res) => {
+    document.getElementById('toggle-auto-close-preview').checked =
+      !!res.readmooAutoClosePreviewDialog;
+  });
+}
+
+document.getElementById('toggle-auto-close-preview').addEventListener('change', (e) => {
+  chrome.storage.local.set({ readmooAutoClosePreviewDialog: e.target.checked });
+});
 
 // --- Backup and Restore ---
 
