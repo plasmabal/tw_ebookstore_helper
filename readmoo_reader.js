@@ -37,7 +37,7 @@
     }
   }
 
-  chrome.storage.local.get(['readmooAutoClosePreviewDialog'], (res) => {
+  chrome.storage.sync.get(['readmooAutoClosePreviewDialog'], (res) => {
     if (res.readmooAutoClosePreviewDialog) enable();
   });
 

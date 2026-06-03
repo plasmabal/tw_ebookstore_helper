@@ -36,7 +36,7 @@ navItems.forEach(item => {
 
 const MIGRATIONS = {
   '0.2.0': () => new Promise((resolve) => {
-    chrome.storage.local.get([...LIST_KEYS, 'wishlistTags'], (res) => {
+    chrome.storage.sync.get([...LIST_KEYS, 'wishlistTags'], (res) => {
       const updates = {};
       LIST_KEYS.forEach(key => {
         if (Array.isArray(res[key])) {
@@ -44,14 +44,14 @@ const MIGRATIONS = {
         }
       });
       if (!res.wishlistTags) updates.wishlistTags = {};
-      chrome.storage.local.set(updates, resolve);
+      chrome.storage.sync.set(updates, resolve);
     });
   })
 };
 
 function runMigrations() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['schemaVersion'], (res) => {
+    chrome.storage.sync.get(['schemaVersion'], (res) => {
       const current = res.schemaVersion || '0.1.0';
       const currentIdx = SCHEMA_VERSIONS.indexOf(current);
       // If version is unknown (future), don't run any migrations
@@ -60,7 +60,7 @@ function runMigrations() {
 
       const runNext = (i) => {
         if (i >= pending.length) {
-          chrome.storage.local.set({ schemaVersion: CURRENT_SCHEMA }, resolve);
+          chrome.storage.sync.set({ schemaVersion: CURRENT_SCHEMA }, resolve);
           return;
         }
         const fn = MIGRATIONS[pending[i]];
@@ -72,10 +72,29 @@ function runMigrations() {
   });
 }
 
+function migrateLocalToSync() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['localToSyncMigrated'], (check) => {
+      if (check.localToSyncMigrated) { resolve(); return; }
+      const migrateKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'schemaVersion', 'readmooAutoClosePreviewDialog'];
+      chrome.storage.local.get(migrateKeys, (localData) => {
+        const data = {};
+        migrateKeys.forEach(k => { if (localData[k] !== undefined) data[k] = localData[k]; });
+        const finish = () => chrome.storage.local.set({ localToSyncMigrated: true }, resolve);
+        if (!Object.keys(data).length) { finish(); return; }
+        chrome.storage.sync.set(data, () => {
+          if (chrome.runtime.lastError) console.warn('TEH: migration to sync failed', chrome.runtime.lastError);
+          finish();
+        });
+      });
+    });
+  });
+}
+
 // --- Settings Loading ---
 
 function loadSettings() {
-  chrome.storage.local.get(LIST_KEYS, (res) => {
+  chrome.storage.sync.get(LIST_KEYS, (res) => {
     const pubBlack  = res.publisherBlacklist || [];
     const authorBlack = res.authorBlacklist  || [];
     const pubWhite  = res.publisherWhitelist || [];
@@ -300,7 +319,7 @@ function buildDisplayRow(item, index, items, storageKey, li) {
   delBtn.textContent = '🗑️';
   delBtn.onclick = () => {
     items.splice(index, 1);
-    chrome.storage.local.set({ [storageKey]: items }, loadSettings);
+    chrome.storage.sync.set({ [storageKey]: items }, loadSettings);
   };
 
   actionsDiv.appendChild(editBtn);
@@ -339,7 +358,7 @@ function buildEditRow(item, index, items, storageKey, li) {
     const newName = nameInput.value.trim();
     if (!newName) return;
     items[index] = { name: newName, note: noteTextarea.value.trim(), tags: tagInput.getTags() };
-    chrome.storage.local.set({ [storageKey]: items }, loadSettings);
+    chrome.storage.sync.set({ [storageKey]: items }, loadSettings);
   };
 
   const cancelBtn = document.createElement('button');
@@ -384,11 +403,11 @@ function addItem(input, note, tagInput, storageKey) {
   const tags    = tagInput.getTags();
   if (!name) return;
 
-  chrome.storage.local.get([storageKey], (res) => {
+  chrome.storage.sync.get([storageKey], (res) => {
     const list = res[storageKey] || [];
     if (!list.some(i => i.name === name)) {
       list.push({ name, note: noteVal, tags });
-      chrome.storage.local.set({ [storageKey]: list }, () => {
+      chrome.storage.sync.set({ [storageKey]: list }, () => {
         input.value = '';
         note.value  = '';
         tagInput.reset();
@@ -409,7 +428,7 @@ function loadListTagManager() {
   const el = document.getElementById('list-tag-manager');
   if (!el) return;
 
-  chrome.storage.local.get(LIST_KEYS, (res) => {
+  chrome.storage.sync.get(LIST_KEYS, (res) => {
     const tagCounts = {};
     LIST_KEYS.forEach(key => {
       (res[key] || []).forEach(item => {
@@ -426,7 +445,7 @@ function loadWishlistTagManager() {
   const el = document.getElementById('wishlist-tag-manager');
   if (!el) return;
 
-  chrome.storage.local.get(['wishlistTags'], (res) => {
+  chrome.storage.sync.get(['wishlistTags'], (res) => {
     const tagCounts = {};
     Object.values(res.wishlistTags || {}).forEach(tags => {
       (tags || []).forEach(tag => {
@@ -536,7 +555,7 @@ function startInlineRename(li, oldTag, nameSpan, renameBtn, deleteBtn, onRename)
 }
 
 function renameListTag(oldTag, newTag) {
-  chrome.storage.local.get(LIST_KEYS, (res) => {
+  chrome.storage.sync.get(LIST_KEYS, (res) => {
     const updates = {};
     LIST_KEYS.forEach(key => {
       updates[key] = (res[key] || []).map(item => ({
@@ -544,7 +563,7 @@ function renameListTag(oldTag, newTag) {
         tags: [...new Set((item.tags || []).map(t => t === oldTag ? newTag : t))]
       }));
     });
-    chrome.storage.local.set(updates, () => {
+    chrome.storage.sync.set(updates, () => {
       loadSettings();
       loadListTagManager();
     });
@@ -552,7 +571,7 @@ function renameListTag(oldTag, newTag) {
 }
 
 function deleteListTag(tag) {
-  chrome.storage.local.get(LIST_KEYS, (res) => {
+  chrome.storage.sync.get(LIST_KEYS, (res) => {
     const updates = {};
     LIST_KEYS.forEach(key => {
       updates[key] = (res[key] || []).map(item => ({
@@ -560,7 +579,7 @@ function deleteListTag(tag) {
         tags: (item.tags || []).filter(t => t !== tag)
       }));
     });
-    chrome.storage.local.set(updates, () => {
+    chrome.storage.sync.set(updates, () => {
       loadSettings();
       loadListTagManager();
     });
@@ -568,42 +587,42 @@ function deleteListTag(tag) {
 }
 
 function renameWishlistTag(oldTag, newTag) {
-  chrome.storage.local.get(['wishlistTags'], (res) => {
+  chrome.storage.sync.get(['wishlistTags'], (res) => {
     const updated = {};
     Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
       updated[bookId] = [...new Set((tags || []).map(t => t === oldTag ? newTag : t))];
     });
-    chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
+    chrome.storage.sync.set({ wishlistTags: updated }, loadWishlistTagManager);
   });
 }
 
 function deleteWishlistTag(tag) {
-  chrome.storage.local.get(['wishlistTags'], (res) => {
+  chrome.storage.sync.get(['wishlistTags'], (res) => {
     const updated = {};
     Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
       updated[bookId] = (tags || []).filter(t => t !== tag);
     });
-    chrome.storage.local.set({ wishlistTags: updated }, loadWishlistTagManager);
+    chrome.storage.sync.set({ wishlistTags: updated }, loadWishlistTagManager);
   });
 }
 
 // --- Readmoo Reader Settings ---
 
 function loadReadmooSettings() {
-  chrome.storage.local.get(['readmooAutoClosePreviewDialog'], (res) => {
+  chrome.storage.sync.get(['readmooAutoClosePreviewDialog'], (res) => {
     document.getElementById('toggle-auto-close-preview').checked =
       !!res.readmooAutoClosePreviewDialog;
   });
 }
 
 document.getElementById('toggle-auto-close-preview').addEventListener('change', (e) => {
-  chrome.storage.local.set({ readmooAutoClosePreviewDialog: e.target.checked });
+  chrome.storage.sync.set({ readmooAutoClosePreviewDialog: e.target.checked });
 });
 
 // --- Backup and Restore ---
 
 function exportData() {
-  chrome.storage.local.get(null, (res) => {
+  chrome.storage.sync.get(null, (res) => {
     const keysToExport = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'schemaVersion'];
     const exportObj = {};
     keysToExport.forEach(key => {
@@ -668,9 +687,13 @@ function handleImport(file) {
         const keysToRestore = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags'];
         const safeData = {};
         keysToRestore.forEach(k => { if (k in data) safeData[k] = data[k]; });
-        chrome.storage.local.set(safeData, () => {
+        chrome.storage.sync.set(safeData, () => {
+          if (chrome.runtime.lastError) {
+            alert('❌ 錯誤：資料量超過同步儲存空間限制（100 KB），無法還原。請減少清單條目後再試。');
+            return;
+          }
           // Remove schemaVersion so migrations re-run on imported data
-          chrome.storage.local.remove('schemaVersion', () => {
+          chrome.storage.sync.remove('schemaVersion', () => {
             runMigrations().then(() => {
               alert('✅ 資料還原成功！');
               loadSettings();
@@ -725,4 +748,4 @@ dropZone.addEventListener('drop', (e) => {
 
 // --- Init ---
 
-runMigrations().then(loadSettings);
+migrateLocalToSync().then(runMigrations).then(loadSettings);

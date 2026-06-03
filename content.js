@@ -22,14 +22,26 @@
       'wishlistRemarks', 'wishlistTags'
     ];
 
-    chrome.storage.local.get(keys, (res) => {
+    chrome.storage.sync.get(keys, (res) => {
       if (chrome.runtime.lastError) return;
-      updateCache(res);
-      run();
+      if (keys.some(k => res[k] !== undefined)) {
+        updateCache(res);
+        run();
+        return;
+      }
+      // Sync is empty — migrate from local if available (first run after update)
+      chrome.storage.local.get(keys, (localRes) => {
+        if (chrome.runtime.lastError) return;
+        const data = {};
+        keys.forEach(k => { if (localRes[k] !== undefined) data[k] = localRes[k]; });
+        if (Object.keys(data).length) chrome.storage.sync.set(data);
+        updateCache(localRes);
+        run();
+      });
     });
 
     chrome.storage.onChanged.addListener((changes, namespace) => {
-      if (namespace !== 'local') return;
+      if (namespace !== 'sync') return;
 
       const validKeys = [
         'publisherBlacklist', 'authorBlacklist',
@@ -71,7 +83,7 @@
   function saveWishlistData(bookId, note, tags, callback) {
     if (!chrome.runtime?.id) return;
 
-    chrome.storage.local.get(['wishlistRemarks', 'wishlistTags'], (res) => {
+    chrome.storage.sync.get(['wishlistRemarks', 'wishlistTags'], (res) => {
       if (chrome.runtime?.lastError) return;
       const remarks = { ...res.wishlistRemarks || {} };
       const allTags = { ...res.wishlistTags    || {} };
@@ -91,7 +103,7 @@
       Object.values(allTags).forEach(ts => (ts || []).forEach(t => pool.add(t)));
       cachedLists.wishlistTagPool = [...pool];
 
-      chrome.storage.local.set({ wishlistRemarks: remarks, wishlistTags: allTags }, callback);
+      chrome.storage.sync.set({ wishlistRemarks: remarks, wishlistTags: allTags }, callback);
     });
   }
 
@@ -378,7 +390,7 @@
       });
       if (tagsChanged) { update.wishlistTags = newTags; changed = true; }
 
-      if (changed) chrome.storage.local.set(update);
+      if (changed) chrome.storage.sync.set(update);
     }
 
     // Inject remark + tag UI into each wishlist item
