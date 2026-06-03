@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Upcoming Version]
 ### Added
 * **自動關閉試讀提醒**（讀墨閱讀器）：在設定頁「網站設定 → 讀墨」開啟後，試讀時的「喜歡這本書嗎？加入購物車吧！」及「該讓眼睛休息一下囉！」對話框將自動被阻擋，不再打斷閱讀。
+* **跨裝置資料同步**：改用 `chrome.storage.sync` 儲存所有資料，同一 Chrome 帳號登入的多台裝置可自動同步黑白名單、待購清單備註與標籤。更新後首次開啟頁面時，現有資料會自動從舊儲存空間搬移，無需手動操作。
 
 ### Changed
 

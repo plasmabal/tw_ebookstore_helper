@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **核心開發規範**：`GEMINI.md` — DOM 解析策略、UI/UX 原則、Git 流程、XSS 防範要求。
 2. **功能規格**：`docs/FEATURES.md` — 每項功能的預期行為，**修改或重構前務必對照**，避免誤刪功能。**有功能新增、變更或移除時，必須同步更新此文件，確保內容隨時反映現實狀況。**
+   **Commit 前亦須檢查 `CHANGES.md` 是否需要更新**，凡使用者可感知的功能異動（新增、變更、修正）都應記錄於 `[Upcoming Version]` 區段。
 3. **自動化測試知識庫**：`docs/Extension_Testing_Patterns.md` — Puppeteer + Jest E2E 測試策略。
 4. **執行測試 (Skill)**：若需執行測試，請參考 `.cursor/rules/run_test.mdc`。
 
