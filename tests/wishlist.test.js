@@ -13,7 +13,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     const setup = await global.browser.newPage();
     await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setup.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, { ...testData, ...extra });
     await setup.close();
   }
@@ -249,7 +249,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
 
     const storage = await page.evaluate(() =>
       new Promise(resolve =>
-        chrome.storage.local.get(['wishlistRemarks', 'wishlistTags'], resolve)
+        chrome.storage.sync.get(['wishlistRemarks', 'wishlistTags'], resolve)
       )
     );
 

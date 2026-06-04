@@ -95,6 +95,18 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* 列表卡片最佳購買法純文字提示 */
+.teh-best-price-hint {
+  display: inline-block;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #1b5e20;
+  background-color: #e8f5e9;
+  border-radius: 20px;
+  padding: 1px 8px;
+  margin-top: 4px;
+}
+
 /* 待購清單備註功能 */
 .teh-remark-popover {
   position: absolute;

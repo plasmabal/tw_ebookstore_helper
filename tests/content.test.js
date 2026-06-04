@@ -4,12 +4,12 @@ describe('Readmoo 黑白名單 E2E 測試', () => {
   let page;
 
   beforeAll(async () => {
-    // Inject test data into chrome.storage.local via management.html
+    // Inject test data into chrome.storage.sync via management.html
     const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
     const setupPage = await global.browser.newPage();
     await setupPage.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setupPage.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, testData);
     await setupPage.close();
   });

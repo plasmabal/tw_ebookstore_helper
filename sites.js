@@ -4,48 +4,47 @@
       name: "Readmoo",
       detect: (host) => host === "readmoo.com",
       getPriceInfo: (doc) => {
-        const priceBlocks = doc.querySelectorAll('.price');
-        let ebookPrice = null;
-        let container = null;
-        let isSale = false;
-
-        for (const el of priceBlocks) {
-          if (el.innerText.includes('電子書特價')) {
-            const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
-            if (priceElem) {
-              ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10);
-              container = el;
-              isSale = true;
-              break;
-            }
-          }
-        }
-
-        if (!ebookPrice) {
-          for (const el of priceBlocks) {
-            if (el.innerText.includes('電子書售價')) {
-              if (el.querySelector('del')) continue;
-              const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
-              if (priceElem) {
-                ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10);
-                container = el;
-                break;
-              }
-            }
-          }
-        }
-
-        if (!ebookPrice) return null;
-
         // 限時獨家優惠（不再適用其他優惠）不顯示折扣試算
         const isExclusive = Array.from(doc.querySelectorAll('.promotion-rule')).some(el => el.innerText.includes('不再適用其他優惠'));
         if (isExclusive) return null;
 
-        // 偵測領書額度可用性
+        // 偵測領書額度可用性（列表頁無此按鈕，預設 true）
         const tokenBtn = Array.from(doc.querySelectorAll('button')).find(b => b.innerText.includes('領書額度兌換'));
         const isTokenApplicable = tokenBtn ? !tokenBtn.disabled : true;
 
-        return { price: ebookPrice, isSale, container, isTokenApplicable };
+        const results = [];
+
+        // 一般價格區塊（書籍詳情頁、specialoffer 列表、活動頁延伸閱讀）
+        for (const el of doc.querySelectorAll('.price')) {
+          let ebookPrice = null;
+          let isSale = false;
+          const text = el.innerText;
+          if (text.includes('電子書特價')) {
+            const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
+            if (priceElem) { ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10); isSale = true; }
+          } else if ((text.includes('電子書售價') || text.includes('電子書：')) && !el.querySelector('del')) {
+            const priceElem = el.querySelector('strong[itemprop="price"]') || el.querySelector('strong');
+            if (priceElem) { ebookPrice = parseInt(priceElem.innerText.replace(/[^\d]/g, ''), 10); }
+          }
+          if (ebookPrice) results.push({ price: ebookPrice, isSale, container: el, isTokenApplicable });
+        }
+
+        // 活動頁大張宣傳卡片（.panel-body 內的 DIV 含「電子書售價」文字節點，價格為純文字節點）
+        for (const panel of doc.querySelectorAll('.panel-body')) {
+          for (const div of panel.children) {
+            if (div.tagName !== 'DIV') continue;
+            const hasEbookText = [...div.childNodes].some(n => n.nodeType === 3 && n.textContent.includes('電子書售價'));
+            if (!hasEbookText) continue;
+            const priceText = [...div.childNodes]
+              .filter(n => n.nodeType === 3)
+              .map(n => n.textContent.trim())
+              .find(t => /^\d+$/.test(t));
+            const ebookPrice = priceText ? parseInt(priceText, 10) : null;
+            if (ebookPrice) results.push({ price: ebookPrice, isSale: true, container: div, isTokenApplicable });
+          }
+        }
+
+        return results.length ? results : null;
       },
       getBlacklistTargets: (doc) => {
         const path = window.location.pathname;

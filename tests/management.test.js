@@ -9,7 +9,7 @@ describe('Management Page Tests', () => {
     const setupPage = await global.browser.newPage();
     await setupPage.goto(`chrome-extension://${extensionId}/management.html`);
     await setupPage.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, testData);
     await setupPage.close();
   });
@@ -112,8 +112,8 @@ describe('Management Page Tests', () => {
 
     await page.goto(`chrome-extension://${extensionId}/management.html`);
     await page.evaluate(async (data) => {
-      await new Promise(resolve => chrome.storage.local.remove('schemaVersion', resolve));
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      await new Promise(resolve => chrome.storage.sync.remove('schemaVersion', resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, legacyData);
 
     // 重新載入 — 會觸發 runMigrations()
@@ -124,7 +124,7 @@ describe('Management Page Tests', () => {
 
     // 確認 schemaVersion 已更新為 0.2.0
     const schema = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['schemaVersion'], res => resolve(res.schemaVersion)))
+      new Promise(resolve => chrome.storage.sync.get(['schemaVersion'], res => resolve(res.schemaVersion)))
     );
     expect(schema).toBe('0.2.0');
   });
@@ -140,7 +140,7 @@ describe('Management Page - 編輯與刪除', () => {
     const setup = await global.browser.newPage();
     await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setup.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, testData);
     await setup.close();
 
@@ -178,7 +178,7 @@ describe('Management Page - 編輯與刪除', () => {
 
     // 確認 storage 也已更新
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['authorBlacklist'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['authorBlacklist'], resolve))
     );
     expect(storage.authorBlacklist[0].name).toBe('修改後作者名');
   });
@@ -221,7 +221,7 @@ describe('Management Page - 編輯與刪除', () => {
     expect(content).not.toContain('典石成金工作室');
 
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['publisherBlacklist'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['publisherBlacklist'], resolve))
     );
     expect(storage.publisherBlacklist).toHaveLength(0);
   });
@@ -236,7 +236,7 @@ describe('Management Page - 名單 Tag 管理', () => {
     const setup = await global.browser.newPage();
     await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setup.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, testData);
     await setup.close();
 
@@ -271,7 +271,7 @@ describe('Management Page - 名單 Tag 管理', () => {
     await new Promise(r => setTimeout(r, 500));
 
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['publisherBlacklist'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['publisherBlacklist'], resolve))
     );
     expect(storage.publisherBlacklist[0].tags).toContain('最爛翻譯');
     expect(storage.publisherBlacklist[0].tags).not.toContain('爛翻譯');
@@ -297,7 +297,7 @@ describe('Management Page - 名單 Tag 管理', () => {
     await new Promise(r => setTimeout(r, 500));
 
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['authorBlacklist'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['authorBlacklist'], resolve))
     );
     const kouFu = storage.authorBlacklist.find(i => i.name === '九把刀');
     expect(kouFu.tags).not.toContain('台灣作者');
@@ -346,7 +346,7 @@ describe('Management Page - 待購清單 Tag 管理', () => {
     const setup = await global.browser.newPage();
     await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setup.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, { ...testData, ...WISHLIST_TAGS_SEED });
     await setup.close();
 
@@ -391,7 +391,7 @@ describe('Management Page - 待購清單 Tag 管理', () => {
     await new Promise(r => setTimeout(r, 500));
 
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['wishlistTags'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTags'], resolve))
     );
     expect(storage.wishlistTags['12345']).toContain('必買');
     expect(storage.wishlistTags['12345']).not.toContain('想買');
@@ -415,7 +415,7 @@ describe('Management Page - 待購清單 Tag 管理', () => {
     await new Promise(r => setTimeout(r, 500));
 
     const storage = await page.evaluate(() =>
-      new Promise(resolve => chrome.storage.local.get(['wishlistTags'], resolve))
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTags'], resolve))
     );
     expect(storage.wishlistTags['12345']).not.toContain('小說');
     expect(storage.wishlistTags['67890']).not.toContain('小說');
@@ -431,7 +431,7 @@ describe('Management Page - 備份與還原', () => {
     const setup = await global.browser.newPage();
     await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setup.evaluate(async (data) => {
-      return new Promise(resolve => chrome.storage.local.set(data, resolve));
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
     }, testData);
     await setup.close();
 
@@ -504,7 +504,7 @@ describe('Management Page - 備份與還原', () => {
 
     const storage = await page.evaluate(() =>
       new Promise(resolve =>
-        chrome.storage.local.get(['publisherBlacklist', 'authorWhitelist'], resolve)
+        chrome.storage.sync.get(['publisherBlacklist', 'authorWhitelist'], resolve)
       )
     );
     expect(storage.publisherBlacklist[0].name).toBe('匯入出版社');
