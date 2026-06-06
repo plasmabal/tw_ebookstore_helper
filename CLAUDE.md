@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. **自動化測試知識庫**：`docs/Extension_Testing_Patterns.md` — Puppeteer + Jest E2E 測試策略。
 4. **執行測試 (Skill)**：若需執行測試，請參考 `.cursor/rules/run_test.mdc`。
 5. **Code Review (Skill)**：使用 `/project-code-review` 指令審查目前 staged 變更，輸出繁體中文 markdown 報告（含安全性、正確性、Chrome Extension 特有問題）。
+6. **Commit (Skill)**：使用 `/project-commit` 指令取代手動 `git commit`。會自動依序確認 CHANGES.md（使用者可感知的變動）、docs/FEATURES.md（功能規格變動）、unit test 完整性，三項通過後才執行 commit。
 
 ## 常用指令
 
