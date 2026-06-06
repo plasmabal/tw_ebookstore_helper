@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Wishlist Prices Fixture</title>
+</head>
+<body>
+  <ul class="cart-list-item-list">
+    <!-- 一般售價 NT$299 -->
+    <li class="cart-list-item">
+      <a class="item-cover-link" href="https://readmoo.com/book/11111">
+        <img src="" alt="封面">
+      </a>
+      <div class="item-detail-content">
+        <div class="item-contributor-box">測試作者 A</div>
+      </div>
+      <div class="item-price-box">
+        <div class="item-price-box__main">
+          <div class="item-price" role="text" aria-label="單價299元">NT$ 299</div>
+        </div>
+      </div>
+      <button class="btn-remove">移除</button>
+    </li>
+    <!-- 特價 NT$150（原價 NT$200） -->
+    <li class="cart-list-item">
+      <a class="item-cover-link" href="https://readmoo.com/book/22222">
+        <img src="" alt="封面">
+      </a>
+      <div class="item-detail-content">
+        <div class="item-contributor-box">測試作者 B</div>
+      </div>
+      <div class="item-price-box">
+        <div class="item-price-box__main">
+          <span class="mb-sm-2 badge bg-notice">特價</span>
+          <div class="item-price text-red-400" role="text" aria-label="單價150元">NT$ 150</div>
+          <div role="text" class="text-decoration-line-through" aria-label="原價200元">NT$ 200</div>
+        </div>
+      </div>
+      <button class="btn-remove">移除</button>
+    </li>
+    <!-- 停止銷售 NT$380 -->
+    <li class="cart-list-item">
+      <a class="item-cover-link" href="https://readmoo.com/book/33333">
+        <img src="" alt="封面">
+      </a>
+      <div class="item-detail-content">
+        <div class="item-contributor-box">測試作者 C</div>
+        <span class="text-attention">停止銷售</span>
+      </div>
+      <div class="item-price-box">
+        <div class="item-price-box__main">
+          <div class="item-price" role="text" aria-label="單價380元">NT$ 380</div>
+        </div>
+      </div>
+      <button class="btn-remove">移除</button>
+    </li>
+  </ul>
+</body>
+</html>

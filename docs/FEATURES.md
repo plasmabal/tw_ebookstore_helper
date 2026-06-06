@@ -46,6 +46,7 @@
 | 活動頁大張宣傳卡片（`/campaign/*` `.panel-body`） | 完整下拉選單 |
 | 每日特惠書列表（`/campaign/specialoffer/`）| 輕量綠色標籤 |
 | 活動頁延伸閱讀列表（`/campaign/*` `.listItem-box`） | 輕量綠色標籤 |
+| 待購清單（`/checkout/cart#wishlist`）| 輕量綠色標籤 |
 
 ### 2.1 顯示條件
 
@@ -53,10 +54,11 @@
 
 - `.price` 元素，innerText 含 `電子書售價`、`電子書特價` 或 `電子書：`，且內有 `<strong>` 價格
 - 活動頁：`.panel-body > DIV`，含「電子書售價」文字節點，價格為純數字文字節點
+- 待購清單：`li.cart-list-item` 下的 `.item-price`（以 `aria-label="單價NNN元"` 取價格）；含 `span.text-attention` 且文字為「停止銷售」的書籍略過不注入
 
 注入位置：價格容器內（`info.container`）。
 
-**呈現判斷**：若 `info.container` 位於 `.listItem-box` 內，顯示輕量標籤；否則顯示完整下拉選單。
+**呈現判斷**：若 `info.container` 位於 `.listItem-box` 或 `.cart-list-item` 內，顯示輕量標籤；否則顯示完整下拉選單。
 
 ### 2.2 計算選項
 

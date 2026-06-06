@@ -44,6 +44,20 @@
           }
         }
 
+        // 待購清單頁（/checkout/cart#wishlist）
+        if (window.location.hash === '#wishlist') {
+          for (const li of doc.querySelectorAll('li.cart-list-item')) {
+            if ([...li.querySelectorAll('span.text-attention')].some(s => s.textContent.includes('停止銷售'))) continue;
+            const priceEl = li.querySelector('.item-price');
+            if (!priceEl) continue;
+            const match = (priceEl.getAttribute('aria-label') || '').match(/單價(\d+)元/);
+            const ebookPrice = match ? parseInt(match[1], 10) : parseInt(priceEl.textContent.replace(/[^\d]/g, ''), 10);
+            if (!ebookPrice) continue;
+            const container = li.querySelector('.item-price-box__main');
+            if (container) results.push({ price: ebookPrice, isSale: !!li.querySelector('.badge.bg-notice'), container, isTokenApplicable });
+          }
+        }
+
         return results.length ? results : null;
       },
       getBlacklistTargets: (doc) => {

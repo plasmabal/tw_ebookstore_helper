@@ -2,6 +2,15 @@ const fs   = require('fs');
 const path = require('path');
 const testData = require('./testData.json');
 
+// 待購清單最優價格計算（與 sites.js 邏輯一致，fixture 測試用）
+const WISHLIST_PRICE_OPTIONS = (price) => [
+  { id: 'd75', label: '75折',  cost: Math.round(price * 0.75) },
+  { id: 'd80', label: '8折',   cost: Math.round(price * 0.80) },
+  { id: 'm50', label: '-50',   cost: Math.max(0, price - 50)  },
+  { id: 'tok', label: '領書額度', cost: Math.ceil(price / 250) * 167 }
+];
+const bestOf = (price) => WISHLIST_PRICE_OPTIONS(price).reduce((a, b) => a.cost <= b.cost ? a : b);
+
 describe('待購清單備註注入測試 (Fixture)', () => {
   const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
   const FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist.html#wishlist`;
@@ -638,5 +647,126 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect(storage.wishlistRemarks['12345']).toBe('保留備註');
     expect(storage.wishlistRemarks['99999']).toBeUndefined();
     expect(storage.wishlistTags['99999']).toBeUndefined();
+  });
+});
+
+describe('待購清單最優價格注入測試 (Fixture)', () => {
+  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  const PRICES_FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist_prices.html#wishlist`;
+  const CONTENT_JS = path.resolve(__dirname, '../content.js');
+
+  let page;
+
+  async function setStorage(extra = {}) {
+    const setup = await global.browser.newPage();
+    await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
+    await setup.evaluate(async (data) => {
+      return new Promise(resolve => chrome.storage.sync.set(data, resolve));
+    }, { ...extra });
+    await setup.close();
+  }
+
+  async function loadPricesFixture() {
+    await page.goto(PRICES_FIXTURE_URL, { waitUntil: 'domcontentloaded' });
+    // getPriceInfo mirrors the wishlist block in sites.js getPriceInfo()
+    // (「待購清單頁（/checkout/cart#wishlist）」section).
+    // If that logic changes, update this mock to match.
+    await page.evaluate(() => {
+      window.TEH = {
+        findSite: () => ({
+          getPriceInfo: (doc) => {
+            if (window.location.hash !== '#wishlist') return null;
+            const results = [];
+            for (const li of doc.querySelectorAll('li.cart-list-item')) {
+              if ([...li.querySelectorAll('span.text-attention')].some(s => s.textContent.includes('停止銷售'))) continue;
+              const priceEl = li.querySelector('.item-price');
+              if (!priceEl) continue;
+              const match = (priceEl.getAttribute('aria-label') || '').match(/單價(\d+)元/);
+              const ebookPrice = match ? parseInt(match[1], 10) : parseInt(priceEl.textContent.replace(/[^\d]/g, ''), 10);
+              if (!ebookPrice) continue;
+              const container = li.querySelector('.item-price-box__main');
+              if (container) results.push({ price: ebookPrice, isSale: !!li.querySelector('.badge.bg-notice'), container, isTokenApplicable: true });
+            }
+            return results.length ? results : null;
+          },
+          getBlacklistTargets: () => ({ global: null, blocks: [] })
+        })
+      };
+    });
+    const code = fs.readFileSync(CONTENT_JS, 'utf8');
+    await page.evaluate(code);
+  }
+
+  beforeEach(async () => {
+    page = await global.browser.newPage();
+  });
+
+  afterEach(async () => {
+    if (page && !page.isClosed()) await page.close();
+  });
+
+  test('26. 一般售價書籍應注入 teh-best-price-hint', async () => {
+    await setStorage({});
+    await loadPricesFixture();
+    await page.waitForSelector('li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint', { timeout: 3000 });
+
+    const hint = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint',
+      el => el.textContent
+    );
+    // NT$299: 75折=224, 8折=239, -50=249, token=334 → best is 75折:224
+    const best = bestOf(299);
+    expect(hint).toContain('↳');
+    expect(hint).toContain(best.label);
+    expect(hint).toContain(String(best.cost));
+  });
+
+  test('27. 特價書籍應以特價（非原價）計算最優價格', async () => {
+    await setStorage({});
+    await loadPricesFixture();
+    await page.waitForSelector('li.cart-list-item[data-teh-book-id="22222"] .teh-best-price-hint', { timeout: 3000 });
+
+    const hint = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="22222"] .teh-best-price-hint',
+      el => el.textContent
+    );
+    // NT$150 (sale): 75折=113, 8折=120, -50=100, token=167 → best is -50:100
+    const best = bestOf(150);
+    expect(hint).toContain('↳');
+    expect(hint).toContain(best.label);
+    expect(hint).toContain(String(best.cost));
+  });
+
+  test('28. 停止銷售書籍不應注入任何價格提示', async () => {
+    await setStorage({});
+    await loadPricesFixture();
+    // Wait for other books' hints to confirm injection ran, then check sold-out item
+    await page.waitForSelector('li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint', { timeout: 3000 });
+
+    const hintOnSoldOut = await page.$('li.cart-list-item[data-teh-book-id="33333"] .teh-best-price-hint');
+    expect(hintOnSoldOut).toBeNull();
+  });
+
+  test('29. 提示應注入於 .item-price-box__main 內', async () => {
+    await setStorage({});
+    await loadPricesFixture();
+    await page.waitForSelector('li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint', { timeout: 3000 });
+
+    const parentClass = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint',
+      el => el.parentElement.className
+    );
+    expect(parentClass).toContain('item-price-box__main');
+  });
+
+  test('30. 重複觸發 run() 不應重複注入提示（idempotency）', async () => {
+    await setStorage({});
+    await loadPricesFixture();
+    await page.waitForSelector('li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint', { timeout: 3000 });
+    // Wait for MutationObserver debounce cycle to settle
+    await new Promise(r => setTimeout(r, 700));
+
+    const hints = await page.$$('li.cart-list-item[data-teh-book-id="11111"] .teh-best-price-hint');
+    expect(hints.length).toBe(1);
   });
 });

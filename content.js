@@ -667,8 +667,8 @@
 
         const bestOption = options.reduce((prev, curr) => (prev.cost <= curr.cost ? prev : curr));
 
-        // 列表卡片（空間受限）：顯示純文字提示
-        if (info.container.closest('.listItem-box')) {
+        // 列表卡片、待購清單（空間受限）：顯示純文字提示
+        if (info.container.closest('.listItem-box') || info.container.closest('.cart-list-item')) {
           const hint = document.createElement('span');
           hint.className = 'teh-best-price-hint';
           hint.textContent = `↳ ${bestOption.display}`;
