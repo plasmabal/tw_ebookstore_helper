@@ -7,7 +7,8 @@
     white: { publisher: [], author: [] },
     wishlistRemarks: {},
     wishlistTags: {},
-    wishlistTagPool: []
+    wishlistTagPool: [],
+    wishlistTagTemplates: []
   };
 
   let activeTagFilters = new Set();
@@ -19,7 +20,7 @@
     const keys = [
       'publisherBlacklist', 'authorBlacklist',
       'publisherWhitelist', 'authorWhitelist',
-      'wishlistRemarks', 'wishlistTags'
+      'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'
     ];
 
     chrome.storage.sync.get(keys, (res) => {
@@ -46,7 +47,7 @@
       const validKeys = [
         'publisherBlacklist', 'authorBlacklist',
         'publisherWhitelist', 'authorWhitelist',
-        'wishlistRemarks', 'wishlistTags'
+        'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'
       ];
 
       const res = {};
@@ -79,14 +80,18 @@
         if (!cachedLists.wishlistTagPool.includes(tag)) activeTagFilters.delete(tag);
       });
     }
+
+    if ('wishlistTagTemplates' in res) {
+      cachedLists.wishlistTagTemplates = (res.wishlistTagTemplates || []).slice();
+    }
   }
 
   // --- 待購清單備份功能 ---
 
-  function saveWishlistData(bookId, note, tags, callback) {
+  function saveWishlistData(bookId, note, tags, callback, preserveOrphanTags = false) {
     if (!chrome.runtime?.id) return;
 
-    chrome.storage.sync.get(['wishlistRemarks', 'wishlistTags'], (res) => {
+    chrome.storage.sync.get(['wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'], (res) => {
       if (chrome.runtime?.lastError) return;
       const remarks = { ...res.wishlistRemarks || {} };
       const allTags = { ...res.wishlistTags    || {} };
@@ -95,6 +100,7 @@
       if (trimmedNote) remarks[bookId] = trimmedNote;
       else delete remarks[bookId];
 
+      const oldTagsForBook = allTags[bookId] || [];
       const cleanTags = (tags || []).filter(t => t.trim());
       if (cleanTags.length) allTags[bookId] = cleanTags;
       else delete allTags[bookId];
@@ -109,7 +115,39 @@
         if (!cachedLists.wishlistTagPool.includes(tag)) activeTagFilters.delete(tag);
       });
 
-      chrome.storage.sync.set({ wishlistRemarks: remarks, wishlistTags: allTags }, callback);
+      // --- Template management ---
+      let templates = [...(res.wishlistTagTemplates || [])];
+      let templatesChanged = false;
+
+      // Deactivate: remove newly-added tags from templates (they're now actively used)
+      if (cleanTags.length > 0) {
+        const before = templates.length;
+        templates = templates.filter(t => !cleanTags.includes(t));
+        if (templates.length !== before) templatesChanged = true;
+      }
+
+      // Orphan promotion: when a book leaves the wishlist, preserve its orphaned tags
+      if (preserveOrphanTags && oldTagsForBook.length > 0) {
+        const remainingPool = new Set(Object.values(allTags).flat());
+        const templateSet = new Set(templates);
+        let promoted = false;
+        oldTagsForBook.forEach(tag => {
+          if (!remainingPool.has(tag) && !templateSet.has(tag)) {
+            templateSet.add(tag);
+            promoted = true;
+          }
+        });
+        if (promoted) {
+          templates = [...templateSet].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+          templatesChanged = true;
+        }
+      }
+
+      if (templatesChanged) cachedLists.wishlistTagTemplates = templates;
+
+      const updates = { wishlistRemarks: remarks, wishlistTags: allTags };
+      if (templatesChanged) updates.wishlistTagTemplates = templates;
+      chrome.storage.sync.set(updates, callback);
     });
   }
 
@@ -174,7 +212,8 @@
     function showDropdown(query) {
       if (!query) { hideDropdown(); return; }
       const q = query.toLowerCase();
-      const suggestions = cachedLists.wishlistTagPool.filter(t => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 5);
+      const allPoolTags = [...new Set([...cachedLists.wishlistTagPool, ...cachedLists.wishlistTagTemplates])];
+      const suggestions = allPoolTags.filter(t => t.toLowerCase().includes(q) && !tags.includes(t)).slice(0, 5);
       if (!suggestions.length) { hideDropdown(); return; }
       highlightedIdx = -1;
       dropdown.innerHTML = '';
@@ -454,10 +493,34 @@
 
       const newTags = { ...cachedLists.wishlistTags };
       let tagsChanged = false;
+      const removedBookTags = [];
       Object.keys(newTags).forEach(id => {
-        if (!currentIds.has(id)) { delete newTags[id]; tagsChanged = true; }
+        if (!currentIds.has(id)) {
+          (newTags[id] || []).forEach(t => removedBookTags.push(t));
+          delete newTags[id];
+          tagsChanged = true;
+        }
       });
       if (tagsChanged) { update.wishlistTags = newTags; changed = true; }
+
+      // Promote orphaned tags from removed books to wishlistTagTemplates
+      if (removedBookTags.length > 0) {
+        const remainingPool = new Set(Object.values(newTags).flat());
+        const templateSet = new Set(cachedLists.wishlistTagTemplates);
+        let promoted = false;
+        removedBookTags.forEach(tag => {
+          if (!remainingPool.has(tag) && !templateSet.has(tag)) {
+            templateSet.add(tag);
+            promoted = true;
+          }
+        });
+        if (promoted) {
+          const sorted = [...templateSet].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+          update.wishlistTagTemplates = sorted;
+          cachedLists.wishlistTagTemplates = sorted;
+          changed = true;
+        }
+      }
 
       if (changed) chrome.storage.sync.set(update);
     }
@@ -566,7 +629,7 @@
       const removeBtn = item.querySelector('.btn-remove');
       if (removeBtn && !removeBtn.dataset.tehObserved) {
         removeBtn.dataset.tehObserved = 'true';
-        removeBtn.addEventListener('click', () => saveWishlistData(bookId, '', []));
+        removeBtn.addEventListener('click', () => saveWishlistData(bookId, '', [], null, true));
       }
     });
 

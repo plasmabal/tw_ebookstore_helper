@@ -445,15 +445,93 @@ function loadWishlistTagManager() {
   const el = document.getElementById('wishlist-tag-manager');
   if (!el) return;
 
-  chrome.storage.sync.get(['wishlistTags'], (res) => {
+  chrome.storage.sync.get(['wishlistTags', 'wishlistTagTemplates'], (res) => {
     const tagCounts = {};
     Object.values(res.wishlistTags || {}).forEach(tags => {
       (tags || []).forEach(tag => {
         tagCounts[tag] = (tagCounts[tag] || 0) + 1;
       });
     });
-    renderTagManagerContent(el, tagCounts, renameWishlistTag, deleteWishlistTag);
+    const templates = res.wishlistTagTemplates || [];
+    renderWishlistTagManagerContent(el, tagCounts, templates, renameWishlistTag, deleteWishlistTag);
   });
+}
+
+function renderWishlistTagManagerContent(containerEl, tagCounts, templateTags, onRename, onDelete) {
+  containerEl.innerHTML = '';
+
+  const activeTags = Object.keys(tagCounts).sort((a, b) => {
+    const diff = tagCounts[b] - tagCounts[a];
+    return diff !== 0 ? diff : a.localeCompare(b, 'zh-TW');
+  });
+
+  const activeSet = new Set(activeTags);
+  const templateOnlyTags = templateTags
+    .filter(t => !activeSet.has(t))
+    .sort((a, b) => a.localeCompare(b, 'zh-TW'));
+
+  if (activeTags.length === 0 && templateOnlyTags.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'tag-manager-empty';
+    p.textContent = '尚無標籤。在新增備註時可加入標籤。';
+    containerEl.appendChild(p);
+    return;
+  }
+
+  const ul = document.createElement('ul');
+  ul.className = 'tag-manager-list';
+
+  activeTags.forEach(tag => {
+    ul.appendChild(buildWishlistTagItem(tag, `${tagCounts[tag]} 本`, onRename, onDelete));
+  });
+
+  if (templateOnlyTags.length > 0) {
+    if (activeTags.length > 0) {
+      const sep = document.createElement('li');
+      sep.className = 'tag-manager-separator';
+      sep.textContent = '── 已儲存（目前無待購書籍）──';
+      ul.appendChild(sep);
+    }
+    templateOnlyTags.forEach(tag => {
+      ul.appendChild(buildWishlistTagItem(tag, '(0 本)', onRename, onDelete));
+    });
+  }
+
+  containerEl.appendChild(ul);
+}
+
+function buildWishlistTagItem(tag, countLabel, onRename, onDelete) {
+  const li = document.createElement('li');
+  li.className = 'tag-manager-item';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'tag-manager-name';
+  nameSpan.textContent = tag;
+
+  const countSpan = document.createElement('span');
+  countSpan.className = 'tag-manager-count';
+  countSpan.textContent = countLabel;
+
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'btn-tag-rename';
+  renameBtn.textContent = '重命名';
+  renameBtn.onclick = () => startInlineRename(li, tag, nameSpan, renameBtn, deleteBtn, onRename);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'btn-tag-delete';
+  deleteBtn.textContent = '刪除';
+  deleteBtn.onclick = () => {
+    const msg = countLabel === '(0 本)'
+      ? `確定要刪除儲存的標籤「${tag}」？`
+      : `確定要刪除標籤「${tag}」？\n此標籤將從所有含有此標籤的書籍中移除。`;
+    if (confirm(msg)) onDelete(tag);
+  };
+
+  li.appendChild(nameSpan);
+  li.appendChild(countSpan);
+  li.appendChild(renameBtn);
+  li.appendChild(deleteBtn);
+  return li;
 }
 
 function renderTagManagerContent(containerEl, tagCounts, onRename, onDelete) {
@@ -587,22 +665,27 @@ function deleteListTag(tag) {
 }
 
 function renameWishlistTag(oldTag, newTag) {
-  chrome.storage.sync.get(['wishlistTags'], (res) => {
-    const updated = {};
+  chrome.storage.sync.get(['wishlistTags', 'wishlistTagTemplates'], (res) => {
+    const updatedTags = {};
     Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
-      updated[bookId] = [...new Set((tags || []).map(t => t === oldTag ? newTag : t))];
+      updatedTags[bookId] = [...new Set((tags || []).map(t => t === oldTag ? newTag : t))];
     });
-    chrome.storage.sync.set({ wishlistTags: updated }, loadWishlistTagManager);
+    const updatedTemplates = [...new Set(
+      (res.wishlistTagTemplates || []).map(t => t === oldTag ? newTag : t)
+    )];
+    chrome.storage.sync.set({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
   });
 }
 
 function deleteWishlistTag(tag) {
-  chrome.storage.sync.get(['wishlistTags'], (res) => {
-    const updated = {};
+  chrome.storage.sync.get(['wishlistTags', 'wishlistTagTemplates'], (res) => {
+    const updatedTags = {};
     Object.entries(res.wishlistTags || {}).forEach(([bookId, tags]) => {
-      updated[bookId] = (tags || []).filter(t => t !== tag);
+      const filtered = (tags || []).filter(t => t !== tag);
+      if (filtered.length) updatedTags[bookId] = filtered;
     });
-    chrome.storage.sync.set({ wishlistTags: updated }, loadWishlistTagManager);
+    const updatedTemplates = (res.wishlistTagTemplates || []).filter(t => t !== tag);
+    chrome.storage.sync.set({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
   });
 }
 
@@ -623,7 +706,7 @@ document.getElementById('toggle-auto-close-preview').addEventListener('change', 
 
 function exportData() {
   chrome.storage.sync.get(null, (res) => {
-    const keysToExport = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'schemaVersion'];
+    const keysToExport = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates', 'schemaVersion'];
     const exportObj = {};
     keysToExport.forEach(key => {
       if (res[key] !== undefined) exportObj[key] = res[key];
@@ -677,14 +760,22 @@ function handleImport(file) {
         return;
       }
 
-      const validKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags'];
+      if (data.wishlistTagTemplates !== undefined && (
+          !Array.isArray(data.wishlistTagTemplates) ||
+          !data.wishlistTagTemplates.every(t => typeof t === 'string')
+      )) {
+        alert('❌ 錯誤：備份檔案結構損壞 (wishlistTagTemplates 格式不符)。');
+        return;
+      }
+
+      const validKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'];
       if (!validKeys.some(key => key in data)) {
         alert('❌ 錯誤：此檔案不包含有效的備份資料。');
         return;
       }
 
       if (confirm('⚠️ 注意：還原將會完全覆蓋現有的名單與備註資料！\n確定要繼續嗎？')) {
-        const keysToRestore = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags'];
+        const keysToRestore = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'];
         const safeData = {};
         keysToRestore.forEach(k => { if (k in data) safeData[k] = data[k]; });
         chrome.storage.sync.set(safeData, () => {

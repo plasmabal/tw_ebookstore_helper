@@ -494,6 +494,130 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect(tagLabels).toEqual(sorted);
   });
 
+  // --- wishlistTagTemplates ---
+
+  test('21. Auto-cleanup：移除孤立書籍的 tag 應轉存至 wishlistTagTemplates', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '99999': ['舊標籤', '奇幻'], '12345': ['奇幻'] },
+      wishlistTagTemplates: []
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+    await new Promise(r => setTimeout(r, 500));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates', 'wishlistTags'], resolve))
+    );
+    // '舊標籤' was only on 99999 (not in DOM) → promoted
+    expect(storage.wishlistTagTemplates).toContain('舊標籤');
+    // '奇幻' still on 12345 (in DOM) → not promoted
+    expect(storage.wishlistTagTemplates).not.toContain('奇幻');
+    // 99999 removed from wishlistTags
+    expect(storage.wishlistTags['99999']).toBeUndefined();
+  });
+
+  test('22. btn-remove：點擊移除按鈕應轉存孤立 tag 至 wishlistTagTemplates', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻', '限定'], '67890': ['奇幻'] },
+      wishlistTagTemplates: []
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    // Click btn-remove for book 12345
+    const removeBtn = await page.$('li.cart-list-item:first-child .btn-remove');
+    await removeBtn.click();
+    await new Promise(r => setTimeout(r, 500));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates'], resolve))
+    );
+    // '限定' was only on 12345 → promoted
+    expect(storage.wishlistTagTemplates).toContain('限定');
+    // '奇幻' still on 67890 → not promoted
+    expect(storage.wishlistTagTemplates).not.toContain('奇幻');
+  });
+
+  test('23. 編輯清空標籤（書留在清單）不應轉存至 wishlistTagTemplates', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] },
+      wishlistTagTemplates: []
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    // Enter edit mode and save with empty tags
+    const container = await page.$('.teh-wishlist-remark-container');
+    await container.click();
+    await new Promise(r => setTimeout(r, 100));
+    const saveBtn = await page.$('.teh-wishlist-remark-container .teh-btn-save');
+    await saveBtn.click();
+    await new Promise(r => setTimeout(r, 500));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates'], resolve))
+    );
+    expect((storage.wishlistTagTemplates || []).length).toBe(0);
+  });
+
+  test('24. wishlistTagTemplates 的 tag 應出現在 chip input 的 autocomplete', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    {},
+      wishlistTagTemplates: ['奇幻', '想買']
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    // Enter edit mode
+    const container = await page.$('.teh-wishlist-remark-container');
+    await container.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    // Type in tag input
+    const tagInput = await page.$('.teh-wishlist-remark-container .teh-tag-text-input');
+    await tagInput.type('奇');
+    await new Promise(r => setTimeout(r, 100));
+
+    const dropdownVisible = await page.$eval('.teh-tag-autocomplete', el => el.style.display !== 'none');
+    expect(dropdownVisible).toBe(true);
+
+    const suggestions = await page.$$eval('.teh-tag-autocomplete li', items => items.map(i => i.textContent));
+    expect(suggestions).toContain('奇幻');
+  });
+
+  test('25. 將 template tag 加入書籍後應從 wishlistTagTemplates 移除', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': [] },
+      wishlistTagTemplates: ['奇幻']
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    // Enter edit mode and add '奇幻' tag
+    const container = await page.$('.teh-wishlist-remark-container');
+    await container.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    const tagInput = await page.$('.teh-wishlist-remark-container .teh-tag-text-input');
+    await tagInput.type('奇幻');
+    await tagInput.press('Enter');
+    await new Promise(r => setTimeout(r, 100));
+
+    const saveBtn = await page.$('.teh-wishlist-remark-container .teh-btn-save');
+    await saveBtn.click();
+    await new Promise(r => setTimeout(r, 500));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates'], resolve))
+    );
+    expect((storage.wishlistTagTemplates || [])).not.toContain('奇幻');
+  });
+
   // --- Auto-cleanup ---
 
   test('6. Auto-cleanup：不在清單中的書籍備註應被清除', async () => {

@@ -132,6 +132,8 @@
 - 「儲存」：寫入 storage，回到顯示模式
 - 「取消」：直接回到顯示模式，不更動資料
 
+**Chip input autocomplete 來源**：目前有書籍使用的 tag（`wishlistTagPool`）∪ `wishlistTagTemplates`（已儲存的常用 tag）去重合併後提供建議。
+
 **Tag filter bar**（清單上方狀態條）：
 
 - 進入頁面時自動顯示於 `ul.cart-list-item-list` 上方（`.teh-tag-filter-bar`）
@@ -180,18 +182,27 @@
 
 ### 4.3 標籤管理（待購清單標籤）
 
-- 統計 `wishlistTags` 中各 tag 的書籍數
-- 支援重命名與刪除，語意同 4.2
+- 合併顯示兩個來源的 tag：
+  - **有書籍使用的 tag**：從 `wishlistTags` 統計書籍數，依數量降序排列，顯示 `X 本`
+  - **已儲存的 template tag**（`wishlistTagTemplates`，目前無書籍）：依字母順序排在下方，顯示 `(0 本)`；與有書籍的 tag 之間加分隔線
+- 同一 tag 若同時在 `wishlistTags` 和 `wishlistTagTemplates`，只顯示一次（以有書籍的版本為主）
+- **重命名**：同步更新 `wishlistTags` 所有書籍與 `wishlistTagTemplates`
+- **刪除**：同步從 `wishlistTags` 所有書籍與 `wishlistTagTemplates` 移除
+
+**wishlistTagTemplates 的生命週期**：
+- **轉存**：當書籍離開待購清單（使用者點「移除」或 auto-cleanup），若該書的 tag 已無其他書籍使用，自動加入 `wishlistTagTemplates`
+- **刻意清空不轉存**：使用者在編輯模式清空某書的標籤並儲存（書仍在清單），不觸發轉存
+- **去活化**：某 tag 被加入任何書籍時，自動從 `wishlistTagTemplates` 移除（已有書籍對應，無需保留）
 
 ### 4.4 備份與還原
 
 **匯出**：
 - 下載 `teh_backup_YYYYMMDD_HHMM.json`
-- 包含：四個清單、`wishlistRemarks`、`wishlistTags`、`schemaVersion`
+- 包含：四個清單、`wishlistRemarks`、`wishlistTags`、`wishlistTagTemplates`、`schemaVersion`
 
 **匯入**：
 - 接受 JSON 檔（點擊選取或拖曳至 drop zone）
-- 驗證格式：各清單須為物件陣列且含 `name`，remarks/tags 須為 object 非 array
+- 驗證格式：各清單須為物件陣列且含 `name`，remarks/tags 須為 object 非 array，`wishlistTagTemplates` 須為 array
 - 若不含任何有效 key，顯示錯誤
 - 驗證通過後顯示 confirm 對話框，確認才覆蓋現有資料
 - 匯入後自動執行 `runMigrations()` 確保結構相容，並顯示成功 alert

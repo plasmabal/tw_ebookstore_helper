@@ -365,7 +365,7 @@ describe('Management Page - 待購清單 Tag 管理', () => {
     const content = await page.content();
     expect(content).toContain('小說');
     expect(content).toContain('想買');
-    expect(content).toContain('個條目');
+    expect(content).toContain('本');
   });
 
   test('可以重命名待購清單 Tag', async () => {
@@ -418,7 +418,8 @@ describe('Management Page - 待購清單 Tag 管理', () => {
       new Promise(resolve => chrome.storage.sync.get(['wishlistTags'], resolve))
     );
     expect(storage.wishlistTags['12345']).not.toContain('小說');
-    expect(storage.wishlistTags['67890']).not.toContain('小說');
+    // '67890' only had '小說' — the key is removed entirely when its tag array becomes empty
+    expect(storage.wishlistTags['67890']).toBeUndefined();
   });
 });
 
@@ -569,5 +570,100 @@ describe('Management Page - 備份與還原', () => {
 
     expect(alertMsg).not.toBeNull();
     expect(alertMsg).toContain('❌');
+  });
+});
+
+// ─── wishlistTagTemplates 管理 ────────────────────────────────────────────────
+describe('Management Page - 待購清單 Template Tags', () => {
+  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let page;
+
+  async function setWishlistStorage(data) {
+    const setup = await global.browser.newPage();
+    await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
+    await setup.evaluate(async (d) => new Promise(resolve => chrome.storage.sync.set(d, resolve)), data);
+    await setup.close();
+  }
+
+  async function openWishlistTagSection() {
+    await page.goto(`chrome-extension://${EXTENSION_ID}/management.html`, { waitUntil: 'networkidle0' });
+    await page.click('button[data-target="section-wishlist-tags"]');
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  beforeEach(async () => { page = await global.browser.newPage(); });
+  afterEach(async () => { if (page && !page.isClosed()) await page.close(); });
+
+  test('待購清單標籤管理應顯示 template tag 為 (0 本)', async () => {
+    await setWishlistStorage({
+      wishlistTags: {},
+      wishlistTagTemplates: ['奇幻', '想買']
+    });
+    await openWishlistTagSection();
+
+    const content = await page.content();
+    expect(content).toContain('奇幻');
+    expect(content).toContain('想買');
+    expect(content).toContain('(0 本)');
+  });
+
+  test('active tag 與 template tag 同時存在時，active 排在上面', async () => {
+    await setWishlistStorage({
+      wishlistTags: { '12345': ['輕小說'] },
+      wishlistTagTemplates: ['奇幻', '輕小說']
+    });
+    await openWishlistTagSection();
+
+    const items = await page.$$eval('#wishlist-tag-manager .tag-manager-item .tag-manager-name',
+      els => els.map(e => e.textContent));
+    // '輕小說' (active, 1本) should come before '奇幻' (template only)
+    expect(items.indexOf('輕小說')).toBeLessThan(items.indexOf('奇幻'));
+
+    // '輕小說' should show count, not (0 本)
+    const lightNovelCount = await page.$eval(
+      '#wishlist-tag-manager .tag-manager-item:first-child .tag-manager-count',
+      el => el.textContent
+    );
+    expect(lightNovelCount).toBe('1 本');
+  });
+
+  test('刪除 template tag 應從 wishlistTagTemplates 移除', async () => {
+    await setWishlistStorage({
+      wishlistTags: {},
+      wishlistTagTemplates: ['奇幻']
+    });
+    await openWishlistTagSection();
+
+    page.once('dialog', d => d.accept());
+    await page.click('#wishlist-tag-manager .btn-tag-delete');
+    await new Promise(r => setTimeout(r, 400));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates'], resolve))
+    );
+    expect((storage.wishlistTagTemplates || [])).not.toContain('奇幻');
+  });
+
+  test('重命名 template tag 應同步更新 wishlistTagTemplates', async () => {
+    await setWishlistStorage({
+      wishlistTags: {},
+      wishlistTagTemplates: ['奇幻']
+    });
+    await openWishlistTagSection();
+
+    await page.click('#wishlist-tag-manager .btn-tag-rename');
+    await new Promise(r => setTimeout(r, 100));
+
+    const renameInput = await page.$('#wishlist-tag-manager .tag-rename-input');
+    await renameInput.click({ clickCount: 3 });
+    await renameInput.type('玄幻');
+    await page.click('#wishlist-tag-manager .btn-tag-rename-confirm');
+    await new Promise(r => setTimeout(r, 400));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates'], resolve))
+    );
+    expect(storage.wishlistTagTemplates).toContain('玄幻');
+    expect(storage.wishlistTagTemplates).not.toContain('奇幻');
   });
 });
