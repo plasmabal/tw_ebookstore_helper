@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
+* **待購清單 Tag 篩選欄位**：待購清單頁上方新增標籤篩選狀態條，一進頁面即列出所有使用中的標籤。點擊標籤可啟用／停用篩選（支援多選，AND 交集邏輯）；無符合結果時顯示提示訊息；點擊「清除標籤篩選」一鍵恢復顯示全部書籍。切換分頁後篩選狀態自動重置。
 
 ### Changed
 

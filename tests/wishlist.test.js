@@ -163,53 +163,50 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect(remarkText).toBe('原始備註');
   });
 
-  test('7. 點擊 tag chip 應過濾清單，只顯示含相同 tag 的書籍', async () => {
+  test('7. 點擊狀態條 tag 應過濾清單，只顯示含相同 tag 的書籍', async () => {
     await setStorage({
       wishlistRemarks: {},
       wishlistTags:    { '12345': ['奇幻'] }   // 67890 無 tag
     });
     await loadFixture();
-    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
 
-    const chip = await page.$('.teh-wishlist-tag-chip');
-    await chip.click();
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
     await new Promise(r => setTimeout(r, 100));
 
-    // 12345 應可見（無 teh-filtered-out）
     const item12345Filtered = await page.$eval(
       'li.cart-list-item[data-teh-book-id="12345"]',
       el => el.classList.contains('teh-filtered-out')
     );
     expect(item12345Filtered).toBe(false);
 
-    // 67890 應被隱藏
     const item67890Filtered = await page.$eval(
       'li.cart-list-item[data-teh-book-id="67890"]',
       el => el.classList.contains('teh-filtered-out')
     );
     expect(item67890Filtered).toBe(true);
-
-    // Badge 應出現並顯示正確 tag
-    await page.waitForSelector('.teh-tag-filter-badge', { timeout: 3000 });
-    const badgeText = await page.$eval('.teh-tag-filter-badge span', el => el.textContent);
-    expect(badgeText).toContain('奇幻');
   });
 
-  test('8. 點擊 badge 清除按鈕應恢復完整清單', async () => {
+  test('8. 點擊清除標籤篩選按鈕應恢復完整清單', async () => {
     await setStorage({
       wishlistRemarks: {},
       wishlistTags:    { '12345': ['奇幻'] }
     });
     await loadFixture();
-    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
 
-    // 先過濾
-    const chip = await page.$('.teh-wishlist-tag-chip');
-    await chip.click();
-    await page.waitForSelector('.teh-tag-filter-badge', { timeout: 3000 });
+    // 先啟用篩選
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
 
     // 點擊清除
-    const clearBtn = await page.$('.teh-tag-filter-badge button');
+    const clearBtn = await page.$('.teh-filter-clear-btn');
     await clearBtn.click();
     await new Promise(r => setTimeout(r, 100));
 
@@ -217,9 +214,9 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     const filteredItems = await page.$$('li.cart-list-item.teh-filtered-out');
     expect(filteredItems.length).toBe(0);
 
-    // Badge 應隱藏
-    const badgeDisplay = await page.$eval('.teh-tag-filter-badge', el => el.style.display);
-    expect(badgeDisplay).toBe('none');
+    // 清除按鈕應回到 inactive
+    const clearActive = await page.$eval('.teh-filter-clear-btn', el => el.classList.contains('teh-filter-tag-active'));
+    expect(clearActive).toBe(false);
   });
 
   test('9. 點擊 tag chip 不應觸發備註編輯模式', async () => {
@@ -237,6 +234,267 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     const editor = await page.$('.teh-wishlist-remark-editor');
     expect(editor).toBeNull();
   });
+
+  // --- Tag Filter Bar ---
+
+  test('10. 進入頁面時應顯示 tag filter bar，列出所有 pool tag', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻', '想買'], '67890': ['輕小說'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-tag-filter-bar', { timeout: 3000 });
+
+    const tagLabels = await page.$$eval('.teh-filter-tag', btns => btns.map(b => b.textContent));
+    expect(tagLabels).toContain('奇幻');
+    expect(tagLabels).toContain('想買');
+    expect(tagLabels).toContain('輕小說');
+  });
+
+  test('11. 清除標籤篩選按鈕初始應為 inactive', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-clear-btn', { timeout: 3000 });
+
+    const isActive = await page.$eval('.teh-filter-clear-btn', el => el.classList.contains('teh-filter-tag-active'));
+    expect(isActive).toBe(false);
+  });
+
+  test('12. 點擊 disabled tag 應變成 active', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const isActive = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      return btn ? btn.classList.contains('teh-filter-tag-active') : false;
+    });
+    expect(isActive).toBe(true);
+
+    const clearActive = await page.$eval('.teh-filter-clear-btn', el => el.classList.contains('teh-filter-tag-active'));
+    expect(clearActive).toBe(true);
+  });
+
+  test('13. 點擊 active tag 應 toggle 回 disabled', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // Enable
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    // Disable again
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const isActive = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      return btn ? btn.classList.contains('teh-filter-tag-active') : true;
+    });
+    expect(isActive).toBe(false);
+
+    // 篩選清除，所有書應可見
+    const filteredItems = await page.$$('li.cart-list-item.teh-filtered-out');
+    expect(filteredItems.length).toBe(0);
+  });
+
+  test('14. AND 交集篩選：選多個 tag 只顯示全部皆有的書籍', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻', '想買'], '67890': ['輕小說', '想買'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // Enable '奇幻' then '想買' separately to avoid clicking stale nodes
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '想買');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    // 12345 有 '奇幻' + '想買' → 應可見
+    const item12345Filtered = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="12345"]',
+      el => el.classList.contains('teh-filtered-out')
+    );
+    expect(item12345Filtered).toBe(false);
+
+    // 67890 有 '想買' 但無 '奇幻' → 應被隱藏
+    const item67890Filtered = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="67890"]',
+      el => el.classList.contains('teh-filtered-out')
+    );
+    expect(item67890Filtered).toBe(true);
+  });
+
+  test('15. 點擊清除標籤篩選按鈕應恢復顯示所有書籍並全部回 inactive', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻', '想買'], '67890': ['輕小說'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // Enable some tags
+    await page.evaluate(() => {
+      document.querySelectorAll('.teh-filter-tag').forEach(btn => {
+        if (btn.textContent === '奇幻' || btn.textContent === '輕小說') btn.click();
+      });
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const clearBtn = await page.$('.teh-filter-clear-btn');
+    await clearBtn.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    const filteredItems = await page.$$('li.cart-list-item.teh-filtered-out');
+    expect(filteredItems.length).toBe(0);
+
+    const anyTagActive = await page.$$eval('.teh-filter-tag', btns => btns.some(b => b.classList.contains('teh-filter-tag-active')));
+    expect(anyTagActive).toBe(false);
+
+    const clearActive = await page.$eval('.teh-filter-clear-btn', el => el.classList.contains('teh-filter-tag-active'));
+    expect(clearActive).toBe(false);
+  });
+
+  test('16. AND 交集無結果時顯示空結果訊息', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'], '67890': ['輕小說'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // '奇幻' + '輕小說' → 無書同時擁有兩者
+    await page.evaluate(() => {
+      document.querySelectorAll('.teh-filter-tag').forEach(btn => {
+        if (btn.textContent === '奇幻' || btn.textContent === '輕小說') btn.click();
+      });
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    const allFiltered = await page.$$('li.cart-list-item.teh-filtered-out');
+    expect(allFiltered.length).toBe(2);
+
+    const emptyMsgDisplay = await page.$eval('.teh-wishlist-empty-filter-msg', el => el.style.display);
+    expect(emptyMsgDisplay).toBe('block');
+  });
+
+  test('17. Storage 更新後重新渲染，已 active 的 tag 狀態應保留', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻', '想買'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // Enable '奇幻'
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    // 觸發 storage 更新（只改備註，不改 tags）
+    await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.set({ wishlistRemarks: { '12345': '新備註' } }, resolve))
+    );
+    await new Promise(r => setTimeout(r, 500));
+
+    // '奇幻' 應仍為 active
+    const isActive = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      return btn ? btn.classList.contains('teh-filter-tag-active') : false;
+    });
+    expect(isActive).toBe(true);
+  });
+
+  test('18. 點擊項目上的 tag chip 不應改變狀態條篩選狀態', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-tag-chip', { timeout: 3000 });
+
+    const chip = await page.$('.teh-wishlist-tag-chip');
+    await chip.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    const anyTagActive = await page.$$eval('.teh-filter-tag', btns => btns.some(b => b.classList.contains('teh-filter-tag-active')));
+    expect(anyTagActive).toBe(false);
+  });
+
+  test('19. Hash 切換後回到 #wishlist，tag 篩選狀態應清空', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['奇幻'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    // Enable a tag
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.teh-filter-tag')].find(b => b.textContent === '奇幻');
+      if (btn) btn.click();
+    });
+    await new Promise(r => setTimeout(r, 100));
+
+    // 切換 hash
+    await page.evaluate(() => { window.location.hash = '#other'; });
+    await new Promise(r => setTimeout(r, 100));
+    await page.evaluate(() => { window.location.hash = '#wishlist'; });
+    await new Promise(r => setTimeout(r, 300));
+
+    const anyTagActive = await page.$$eval('.teh-filter-tag', btns => btns.some(b => b.classList.contains('teh-filter-tag-active')));
+    expect(anyTagActive).toBe(false);
+
+    const filteredItems = await page.$$('li.cart-list-item.teh-filtered-out');
+    expect(filteredItems.length).toBe(0);
+  });
+
+  test('20. 狀態條的 tag 應按 localeCompare 排序顯示', async () => {
+    await setStorage({
+      wishlistRemarks: {},
+      wishlistTags:    { '12345': ['想買', '奇幻'], '67890': ['輕小說'] }
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-filter-tag', { timeout: 3000 });
+
+    const tagLabels = await page.$$eval('.teh-filter-tag', btns => btns.map(b => b.textContent));
+    const sorted = [...tagLabels].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+    expect(tagLabels).toEqual(sorted);
+  });
+
+  // --- Auto-cleanup ---
 
   test('6. Auto-cleanup：不在清單中的書籍備註應被清除', async () => {
     await setStorage({

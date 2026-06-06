@@ -123,7 +123,7 @@
 - 已注入過的條目略過
 
 **顯示模式**（預設）：
-- 顯示備註文字與 tag chip
+- 顯示備註文字與 tag chip（純顯示，不可點擊觸發篩選）
 - 無備註時欄位空白（容器仍存在）
 
 **編輯模式**（點擊容器後）：
@@ -131,6 +131,20 @@
 - 顯示 textarea（預填現有備註）、tag chip 輸入框
 - 「儲存」：寫入 storage，回到顯示模式
 - 「取消」：直接回到顯示模式，不更動資料
+
+**Tag filter bar**（清單上方狀態條）：
+
+- 進入頁面時自動顯示於 `ul.cart-list-item-list` 上方（`.teh-tag-filter-bar`）
+- 第一項為 `清除標籤篩選` 按鈕（`.teh-filter-clear-btn`），外觀與 tag 有所區別
+- 其餘項目為所有書籍的 tag 集合（`.teh-filter-tag`），依 `wishlistTagPool` 順序排列
+- 每個 tag / 清除按鈕各有 disabled（預設）與 active（`.teh-filter-tag-active`）兩種狀態
+- 點擊 disabled tag → active；點擊 active tag → disabled（toggle）
+- 多個 tag active 時，清單以 **AND 交集**篩選——只顯示同時擁有所有 active tag 的書籍
+- 篩選結果為零時，顯示 `.teh-wishlist-empty-filter-msg`（「沒有符合篩選條件的書籍」）
+- 點擊 `清除標籤篩選` → 全部 tag 回 disabled，`清除標籤篩選` 本身也回 disabled，顯示全部書籍
+- `clear 標籤篩選` 按鈕：無 active tag 時為 disabled；有 active tag 時為 active
+- storage 更新後重新渲染時，已 active 的 tag 狀態保留（`activeTagFilters` Set 不清空）；若某 active tag 已從 pool 消失，自動移除
+- 切換 hash 後回到 `#wishlist`，active 狀態重置（`activeTagFilters.clear()`）
 
 **移除書籍時**：
 - 監聽每個條目的 `.btn-remove` 按鈕，點擊時自動清除該 bookId 的備註與標籤

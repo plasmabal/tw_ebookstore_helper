@@ -10,7 +10,7 @@
     wishlistTagPool: []
   };
 
-  let activeTagFilter = null;
+  let activeTagFilters = new Set();
 
   // 初始化名單並監聽變動
   function initStorage() {
@@ -74,7 +74,10 @@
       Object.values(cachedLists.wishlistTags).forEach(tags => {
         (tags || []).forEach(t => pool.add(t));
       });
-      cachedLists.wishlistTagPool = [...pool];
+      cachedLists.wishlistTagPool = [...pool].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      activeTagFilters.forEach(tag => {
+        if (!cachedLists.wishlistTagPool.includes(tag)) activeTagFilters.delete(tag);
+      });
     }
   }
 
@@ -101,7 +104,10 @@
       cachedLists.wishlistTags    = allTags;
       const pool = new Set();
       Object.values(allTags).forEach(ts => (ts || []).forEach(t => pool.add(t)));
-      cachedLists.wishlistTagPool = [...pool];
+      cachedLists.wishlistTagPool = [...pool].sort((a, b) => a.localeCompare(b, 'zh-TW'));
+      activeTagFilters.forEach(tag => {
+        if (!cachedLists.wishlistTagPool.includes(tag)) activeTagFilters.delete(tag);
+      });
 
       chrome.storage.sync.set({ wishlistRemarks: remarks, wishlistTags: allTags }, callback);
     });
@@ -317,47 +323,110 @@
     textarea.focus();
   }
 
-  function getOrCreateFilterBadge() {
-    let badge = document.querySelector('.teh-tag-filter-badge');
-    if (badge) return badge;
-    badge = document.createElement('div');
-    badge.className = 'teh-tag-filter-badge';
-    badge.style.display = 'none';
-    const list = document.querySelector('ul.cart-list-item-list');
-    if (list) list.before(badge);
-    return badge;
+  function renderTagFilterBar() {
+    if (window.location.hash !== '#wishlist') return;
+
+    const pool = cachedLists.wishlistTagPool;
+
+    let bar = document.querySelector('.teh-tag-filter-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'teh-tag-filter-bar';
+      const list = document.querySelector('ul.cart-list-item-list');
+      if (!list) return;
+      list.before(bar);
+    }
+
+    // Full rebuild only when pool changes; otherwise just update classes.
+    // innerHTML-based rebuilds trigger the MutationObserver (childList), which
+    // re-schedules run() every 300 ms and causes flicker + missed clicks.
+    const existingTags = [...bar.querySelectorAll('.teh-filter-tag')].map(b => b.textContent);
+    const poolChanged = pool.length !== existingTags.length || pool.some((t, i) => t !== existingTags[i]);
+
+    if (poolChanged) {
+      bar.innerHTML = '';
+
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'teh-filter-clear-btn';
+      clearBtn.textContent = '清除標籤篩選';
+      clearBtn.addEventListener('click', clearTagFilter);
+      bar.appendChild(clearBtn);
+
+      pool.forEach(tag => {
+        const btn = document.createElement('button');
+        btn.className = 'teh-filter-tag';
+        btn.textContent = tag;
+        btn.addEventListener('click', () => toggleTagFilter(tag));
+        bar.appendChild(btn);
+      });
+    }
+
+    // Update active classes (classList.toggle is an attribute mutation — does NOT
+    // trigger the childList MutationObserver).
+    const clearBtn = bar.querySelector('.teh-filter-clear-btn');
+    if (clearBtn) clearBtn.classList.toggle('teh-filter-tag-active', activeTagFilters.size > 0);
+    bar.querySelectorAll('.teh-filter-tag').forEach(btn => {
+      btn.classList.toggle('teh-filter-tag-active', activeTagFilters.has(btn.textContent));
+    });
   }
 
-  function applyTagFilter(tag) {
-    activeTagFilter = tag;
-    document.querySelectorAll('li.cart-list-item[data-teh-book-id]').forEach(item => {
-      const tags = cachedLists.wishlistTags[item.dataset.tehBookId] || [];
-      item.classList.toggle('teh-filtered-out', !tags.includes(tag));
-    });
-    const badge = getOrCreateFilterBadge();
-    badge.innerHTML = '';
-    const label = document.createElement('span');
-    label.textContent = `🏷️ 篩選：${tag}`;
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = '✕ 清除篩選';
-    clearBtn.addEventListener('click', clearTagFilter);
-    badge.appendChild(label);
-    badge.appendChild(clearBtn);
-    badge.style.display = 'flex';
+  function toggleTagFilter(tag) {
+    if (activeTagFilters.has(tag)) {
+      activeTagFilters.delete(tag);
+    } else {
+      activeTagFilters.add(tag);
+    }
+    applyActiveFilters();
+    renderTagFilterBar();
   }
 
   function clearTagFilter() {
-    activeTagFilter = null;
-    document.querySelectorAll('li.cart-list-item.teh-filtered-out').forEach(item => {
-      item.classList.remove('teh-filtered-out');
+    activeTagFilters.clear();
+    applyActiveFilters();
+    renderTagFilterBar();
+  }
+
+  function getOrCreateEmptyMessage() {
+    if (!wishlistEmptyMsg) {
+      wishlistEmptyMsg = document.createElement('div');
+      wishlistEmptyMsg.className = 'teh-wishlist-empty-filter-msg';
+      wishlistEmptyMsg.textContent = '沒有符合篩選條件的書籍';
+      wishlistEmptyMsg.style.display = 'none';
+    }
+    if (!wishlistEmptyMsg.isConnected) {
+      const list = document.querySelector('ul.cart-list-item-list');
+      if (list) list.after(wishlistEmptyMsg);
+    }
+    return wishlistEmptyMsg;
+  }
+
+  function applyActiveFilters() {
+    if (window.location.hash !== '#wishlist') return;
+
+    const emptyMsg = getOrCreateEmptyMessage();
+
+    if (activeTagFilters.size === 0) {
+      document.querySelectorAll('li.cart-list-item[data-teh-book-id]').forEach(item => {
+        item.classList.remove('teh-filtered-out');
+      });
+      emptyMsg.style.display = 'none';
+      return;
+    }
+
+    let visibleCount = 0;
+    document.querySelectorAll('li.cart-list-item[data-teh-book-id]').forEach(item => {
+      const tags = cachedLists.wishlistTags[item.dataset.tehBookId] || [];
+      const matches = [...activeTagFilters].every(t => tags.includes(t));
+      item.classList.toggle('teh-filtered-out', !matches);
+      if (matches) visibleCount++;
     });
-    const badge = document.querySelector('.teh-tag-filter-badge');
-    if (badge) badge.style.display = 'none';
+
+    emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
   }
 
   function injectWishlistRemarks() {
     if (!chrome.runtime?.id) return;
-    if (!window.location.hash.includes('#wishlist')) return;
+    if (window.location.hash !== '#wishlist') return;
 
     const items = document.querySelectorAll('li.cart-list-item');
 
@@ -435,10 +504,7 @@
             const chip = document.createElement('span');
             chip.className = 'teh-wishlist-tag-chip';
             chip.textContent = tag;
-            chip.addEventListener('click', (e) => {
-              e.stopPropagation();
-              applyTagFilter(tag);
-            });
+            chip.addEventListener('click', e => e.stopPropagation());
             tagsDiv.appendChild(chip);
           });
           container.appendChild(tagsDiv);
@@ -503,6 +569,9 @@
         removeBtn.addEventListener('click', () => saveWishlistData(bookId, '', []));
       }
     });
+
+    renderTagFilterBar();
+    applyActiveFilters();
   }
 
   function injectPriceInfo() {
@@ -669,6 +738,7 @@
 
   let timeout = null;
   let wishlistCleanupDone = false;
+  let wishlistEmptyMsg = null;
 
   function run() {
     injectPriceInfo();
@@ -681,6 +751,7 @@
 
   window.addEventListener('hashchange', () => {
     wishlistCleanupDone = false;
+    activeTagFilters.clear();
     run();
   });
 
