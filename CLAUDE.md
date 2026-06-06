@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    **Commit 前亦須檢查 `CHANGES.md` 是否需要更新**，凡使用者可感知的功能異動（新增、變更、修正）都應記錄於 `[Upcoming Version]` 區段。
 3. **自動化測試知識庫**：`docs/Extension_Testing_Patterns.md` — Puppeteer + Jest E2E 測試策略。
 4. **執行測試 (Skill)**：若需執行測試，請參考 `.cursor/rules/run_test.mdc`。
+5. **Code Review (Skill)**：使用 `/project-code-review` 指令審查目前 staged 變更，輸出繁體中文 markdown 報告（含安全性、正確性、Chrome Extension 特有問題）。
 
 ## 常用指令
 
