@@ -48,7 +48,7 @@
 *   **版本排序**：採逆序排列，即新版本在上，舊版本在下。
 *   **提交同步**：新增功能或 Bugfix 的 commit 應一併更新 `CHANGES.md`。
     *   *例外*：若更動已包含在現有的 Upcoming 描述中（例如：已寫「名單功能」，後續只是修正該功能的 Bug），則可省略更新。
-*   **發布作業**：正式 Release 時，將 `[Upcoming Version]` 直接替換為對應的版號。
+*   **發布作業**：正式 Release 時，將 `[Upcoming Version]` 替換為對應的版號，並在其上方補上新的空白 `## [Upcoming Version]` 區塊（含 Added / Changed / Fixed 三個子節）。
 
 ---
 > **💡 自動化測試知識庫**：關於本專案的 E2E 測試架構，請參閱 [docs/Extension_Testing_Patterns.md](docs/Extension_Testing_Patterns.md)。
