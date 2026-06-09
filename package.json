@@ -1,6 +1,6 @@
 {
   "name": "tw_ebookstore_helper",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "這是一個專為台灣電子書讀者開發的 Chrome 擴充功能，旨在優化各家電子書平台的購書體驗。目前主要針對 Readmoo 讀墨提供便利的價格計算與領書額度建議功能。",
   "main": "content.js",
   "scripts": {

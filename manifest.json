@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Taiwan Ebookstore Helper",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7Vd1gtZu8eVDPdD8OPBmi8dNXJFRfpe+BKuSl/P8IZiTobjhSrfy6SaQXkRWRoriB3moHB0z60LTEfa4lIExBqSwDIb3ed1Ifg5XbTiEZuWQr30y2wQTBYwS9CJ4caDjk5a1pKoO/B1f6kXHYo6BgxYkV/4Q5puLjs4ROKKegXzYSYzQqEuwinm60cF2wP16YUc/j6b/T4seXNp4IBQsyl7KcCSn2KSV3TgUrLoLCGTaL4WgK+ecnW+TQTYp0MbavAeDZ7sIdOpP+TVj4LSluE40JPV/nq3CCKryXFk1T+PljjrQuz2hycXU/McXjB/KvRwNivPcSKh0jeuUSYmuCQIDAQAB",
   "description": "支援 Readmoo、博客來、Kobo TW：折扣試算、領書額度建議、名單過濾突顯、待購清單備註與標籤。最優價格計算僅供參考，請以書商系統為主。",
   "permissions": [

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
+
+### Changed
+
+### Fixed
+
+## [0.5.1] - 2026-06-09
+### Added
 * **書籍詳細頁顯示待購備註**：若已將書籍加入待購清單並填寫備註或標籤，再次瀏覽該書籍詳細頁時，備註與標籤會直接顯示在價格區塊下方。提供「編輯」按鈕可直接修改。
 
 ### Changed
