@@ -27,7 +27,7 @@
       if (chrome.runtime.lastError) return;
       if (keys.some(k => res[k] !== undefined)) {
         updateCache(res);
-        run();
+        run(true);
         return;
       }
       // Sync is empty — migrate from local if available (first run after update)
@@ -37,7 +37,7 @@
         keys.forEach(k => { if (localRes[k] !== undefined) data[k] = localRes[k]; });
         if (Object.keys(data).length) chrome.storage.sync.set(data);
         updateCache(localRes);
-        run();
+        run(true);
       });
     });
 
@@ -56,7 +56,7 @@
         if (changes[key]) { res[key] = changes[key].newValue; hasChanges = true; }
       });
 
-      if (hasChanges) { updateCache(res); run(); }
+      if (hasChanges) { updateCache(res); run(true); }
     });
   }
 
@@ -463,7 +463,7 @@
     emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
   }
 
-  function injectWishlistRemarks() {
+  function injectWishlistRemarks(refreshExisting = false) {
     if (!chrome.runtime?.id) return;
     if (window.location.hash !== '#wishlist') return;
 
@@ -527,7 +527,16 @@
 
     // Inject remark + tag UI into each wishlist item
     items.forEach(item => {
-      if (item.querySelector('.teh-wishlist-remark-container')) return;
+      const existingContainer = item.querySelector('.teh-wishlist-remark-container');
+      if (existingContainer) {
+        // Re-render display if called from a storage update and not in edit mode.
+        // Handles the race where MutationObserver fired before initStorage/onChanged
+        // populated the cache (e.g. cross-device sync, slow storage on first install).
+        if (refreshExisting && !existingContainer.querySelector('textarea') && existingContainer._tehRender) {
+          existingContainer._tehRender();
+        }
+        return;
+      }
 
       const coverLink = item.querySelector('.item-cover-link');
       if (!coverLink) return;
@@ -621,6 +630,7 @@
         renderEdit();
       });
 
+      container._tehRender = renderDisplay;
       renderDisplay();
 
       const contributorBox = detailContent.querySelector('.item-contributor-box') || detailContent.lastElementChild;
@@ -803,11 +813,11 @@
   let wishlistCleanupDone = false;
   let wishlistEmptyMsg = null;
 
-  function run() {
+  function run(refreshExisting = false) {
     injectPriceInfo();
     checkLists();
     handleBookPageWishlistButton();
-    injectWishlistRemarks();
+    injectWishlistRemarks(refreshExisting);
   }
 
   initStorage();

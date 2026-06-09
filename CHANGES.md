@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 
 ### Fixed
-
+* **待購清單備註／標籤未顯示修正**：在書籍詳細頁加入待購清單並儲存備註與標籤後，切換至待購清單頁面時資料未正確顯示。此問題在較慢的裝置或跨裝置同步時特別容易發生。
 
 ## [0.5.0] - 2026-06-08
 ### Added

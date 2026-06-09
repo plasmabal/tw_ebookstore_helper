@@ -632,6 +632,41 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect((storage.wishlistTagTemplates || [])).not.toContain('奇幻');
   });
 
+  test('26. 容器已存在時 onChanged 應重新渲染（快取延遲載入修正）', async () => {
+    // Start with empty storage so content.js creates containers with no data.
+    await setStorage({ wishlistRemarks: {}, wishlistTags: {} });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    // Containers exist but show no remarks/tags yet.
+    const initialText = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="12345"] .teh-wishlist-remark-text',
+      el => el.textContent
+    );
+    expect(initialText).toBe('');
+
+    // Simulate storage arriving late (cross-device sync or slow storage.get).
+    await page.evaluate(() =>
+      new Promise(resolve =>
+        chrome.storage.sync.set({
+          wishlistRemarks: { '12345': '延遲載入備註' },
+          wishlistTags:    { '12345': ['延遲Tag'] }
+        }, resolve)
+      )
+    );
+    await new Promise(r => setTimeout(r, 500));
+
+    // Containers should reflect the updated data without requiring a page reload.
+    const updatedText = await page.$eval(
+      'li.cart-list-item[data-teh-book-id="12345"] .teh-wishlist-remark-text',
+      el => el.textContent
+    );
+    expect(updatedText).toBe('延遲載入備註');
+
+    const content = await page.content();
+    expect(content).toContain('延遲Tag');
+  });
+
   // --- Auto-cleanup ---
 
   test('6. Auto-cleanup：不在清單中的書籍備註應被清除', async () => {
