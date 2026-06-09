@@ -19,7 +19,80 @@
 *   **背景**：網站的 DOM 結構往往與「看起來合理」的 class 名稱不同。例如 `search.books.com.tw` 搜尋頁中，`li.item` 看似是書籍卡片，實際上是左側分類過濾標籤；真正的搜尋結果在 `.table-td`。AI 生成的 selector 若未經實測，很容易選錯容器卻毫無報錯。
 *   **做法**：使用 Puppeteer 腳本或 agent-browser，在真實頁面上執行 `document.querySelectorAll(selector)` 來確認元素存在與數量，並抽查 `innerText` / `href` 確認是正確的目標節點，再寫入程式碼。
 
-## 4. 非同步斷言 (Async Assertions) 與嚴謹的選擇器
+## 4. Puppeteer 24.x + Chrome 148 相容性問題（Extension 載入）
+
+> 發現於 2026-06-09。升級 Puppeteer 至 24.x、Chrome 至 148 後，測試全面失敗。
+
+### 問題一：`--disable-extensions` 預設參數衝突
+
+Puppeteer 24.x 的 `defaultArgs()` 內含 `--disable-extensions`，會蓋掉 `--load-extension`，導致 extension 完全無法載入（所有 `chrome-extension://` 導航回傳 `ERR_BLOCKED_BY_CLIENT`）。
+
+**解法**：`setup.js` 啟動時加 `ignoreDefaultArgs: true`，只保留最少必要參數：
+
+```js
+global.browser = await puppeteer.launch({
+  headless: false,
+  userDataDir: tmpDir,
+  ignoreDefaultArgs: true,
+  args: [
+    '--no-first-run',
+    '--no-sandbox',
+    `--disable-extensions-except=${EXTENSION_PATH}`,
+    `--load-extension=${EXTENSION_PATH}`,
+    'about:blank'
+  ]
+});
+```
+
+### 問題二：Chrome 148 不再用 manifest `key` 決定本機 Extension ID
+
+Chrome 148 在本機載入（`--load-extension`）時，改以目錄路徑計算 extension ID，manifest 的 `key` 欄位不再影響本機 ID（但 CWS 上線版仍使用 key）。因此 ID 因機器路徑不同而異，**不可 hardcode**。
+
+**解法**：啟動後透過 `chrome.management.getAll()` 動態取得 ID，存為 `global.EXTENSION_ID`：
+
+```js
+const idPage = await global.browser.newPage();
+await idPage.goto('chrome://extensions/', { waitUntil: 'domcontentloaded' });
+const extensions = await idPage.evaluate(() =>
+  new Promise(resolve => chrome.management.getAll(resolve))
+);
+await idPage.close();
+const ext = extensions.find(e => e.name === 'Taiwan Ebookstore Helper');
+global.EXTENSION_ID = ext ? ext.id : null;
+```
+
+各測試檔的 describe block 不可在 collection phase 讀取 `global.EXTENSION_ID`（此時 `beforeAll` 尚未執行，值為 `undefined`）。應改用 `let` + describe-level `beforeAll`：
+
+```js
+describe('...', () => {
+  let EXTENSION_ID;
+  let FIXTURE_URL;
+  beforeAll(() => {
+    EXTENSION_ID = global.EXTENSION_ID;
+    FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/...`;
+  });
+  // ...
+});
+```
+
+### 問題三：`setStorage` 在 goto() 拋錯時不會關閉 setup page
+
+若 extension 載入失敗，`setStorage()` 中的 `await setup.goto(...)` 會拋錯，`setup.close()` 永遠執行不到，每個 test 都會留下一個殭屍 tab，30+ 個 tab 快速累積後 Chrome 崩潰。根本解法是確保 extension 能正確載入（見問題一、二）。
+
+---
+
+## 5. MutationObserver 無限循環陷阱
+
+在 content.js 裡，`injectWishlistRemarks()` 結尾呼叫 `renderDisplay()` 會修改 DOM（`container.innerHTML = ''` + 重建子節點），這會觸發 MutationObserver，再次呼叫 `run()` → `injectWishlistRemarks()` → `renderDisplay()` → 無限循環。
+
+**規則**：任何從 MutationObserver 觸發的 `run()` 路徑，不得重新渲染已存在的 container。應以旗標區分呼叫來源：
+
+- Storage 回呼（`initStorage` / `onChanged`）呼叫 `run(true)` → 允許重新渲染（資料剛到達）
+- MutationObserver 呼叫 `run()`（預設 `false`）→ 不重新渲染既有 container
+
+---
+
+## 6. 非同步斷言 (Async Assertions) 與嚴謹的選擇器
 *   **問題背景**：
     1.  **時間差 (Flaky Tests)**：擴充功能的 `content.js` 在處理 DOM 變更時，為了效能考量，對 `MutationObserver` 加入了 300ms 的 Debounce 延遲。若 Jest 測試在頁面 `load` 完成後立刻進行斷言，往往會因為擴充功能還沒開始上色而誤判失敗。
     2.  **作用域不精準**：早期測試腳本使用的選擇器（如 `a[href*="/publisher/"]`）過於廣泛，會誤抓到網頁頂部的麵包屑導覽列或其他無關連結。

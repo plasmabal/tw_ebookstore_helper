@@ -12,11 +12,16 @@ const WISHLIST_PRICE_OPTIONS = (price) => [
 const bestOf = (price) => WISHLIST_PRICE_OPTIONS(price).reduce((a, b) => a.cost <= b.cost ? a : b);
 
 describe('待購清單備註注入測試 (Fixture)', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
-  const FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist.html#wishlist`;
+  let EXTENSION_ID;
+  let FIXTURE_URL;
   const CONTENT_JS = path.resolve(__dirname, '../content.js');
 
   let page;
+
+  beforeAll(() => {
+    EXTENSION_ID = global.EXTENSION_ID;
+    FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist.html#wishlist`;
+  });
 
   async function setStorage(extra = {}) {
     const setup = await global.browser.newPage();
@@ -651,11 +656,16 @@ describe('待購清單備註注入測試 (Fixture)', () => {
 });
 
 describe('待購清單最優價格注入測試 (Fixture)', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
-  const PRICES_FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist_prices.html#wishlist`;
+  let EXTENSION_ID;
+  let PRICES_FIXTURE_URL;
   const CONTENT_JS = path.resolve(__dirname, '../content.js');
 
   let page;
+
+  beforeAll(() => {
+    EXTENSION_ID = global.EXTENSION_ID;
+    PRICES_FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/wishlist_prices.html#wishlist`;
+  });
 
   async function setStorage(extra = {}) {
     const setup = await global.browser.newPage();

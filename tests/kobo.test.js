@@ -4,7 +4,7 @@ describe('Kobo 黑白名單 E2E 測試', () => {
   let page;
 
   beforeAll(async () => {
-    const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+    const EXTENSION_ID = global.EXTENSION_ID;
     const setupPage = await global.browser.newPage();
     await setupPage.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
     await setupPage.evaluate(async (data) => {

@@ -3,9 +3,10 @@ const testData = require('./testData.json');
 // ─── 原有測試 ────────────────────────────────────────────────────────────────
 describe('Management Page Tests', () => {
   let page;
-  let extensionId = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let extensionId;
 
   beforeAll(async () => {
+    extensionId = global.EXTENSION_ID;
     const setupPage = await global.browser.newPage();
     await setupPage.goto(`chrome-extension://${extensionId}/management.html`);
     await setupPage.evaluate(async (data) => {
@@ -132,7 +133,8 @@ describe('Management Page Tests', () => {
 
 // ─── 編輯 / 刪除 CRUD ────────────────────────────────────────────────────────
 describe('Management Page - 編輯與刪除', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
   let page;
 
   beforeEach(async () => {
@@ -229,7 +231,8 @@ describe('Management Page - 編輯與刪除', () => {
 
 // ─── Tag 管理：名單標籤 ───────────────────────────────────────────────────────
 describe('Management Page - 名單 Tag 管理', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
   let page;
 
   beforeEach(async () => {
@@ -332,7 +335,8 @@ describe('Management Page - 名單 Tag 管理', () => {
 
 // ─── Tag 管理：待購清單標籤 ──────────────────────────────────────────────────
 describe('Management Page - 待購清單 Tag 管理', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
   let page;
 
   const WISHLIST_TAGS_SEED = {
@@ -425,7 +429,8 @@ describe('Management Page - 待購清單 Tag 管理', () => {
 
 // ─── 備份與還原 ───────────────────────────────────────────────────────────────
 describe('Management Page - 備份與還原', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
   let page;
 
   beforeEach(async () => {
@@ -575,7 +580,8 @@ describe('Management Page - 備份與還原', () => {
 
 // ─── wishlistTagTemplates 管理 ────────────────────────────────────────────────
 describe('Management Page - 待購清單 Template Tags', () => {
-  const EXTENSION_ID = 'mmmgehlnhopcejokbbdjblejkkbbahek';
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
   let page;
 
   async function setWishlistStorage(data) {
