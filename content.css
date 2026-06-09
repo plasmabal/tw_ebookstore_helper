@@ -443,3 +443,43 @@ li.teh-filtered-out {
   margin-bottom: 2px;
 }
 
+/* 書籍詳情頁待購備註區塊 */
+.teh-book-detail-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-left: 3px solid #1a73e8;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.88em;
+}
+
+.teh-book-detail-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: #5f6368;
+}
+
+.teh-book-detail-note-edit {
+  background: none;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85em;
+  cursor: pointer;
+  color: #1a73e8;
+}
+
+.teh-book-detail-note-edit:hover {
+  background: #e8f0fe;
+}
+
+.teh-book-detail-note-text {
+  color: #3c4043;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+

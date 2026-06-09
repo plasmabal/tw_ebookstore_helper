@@ -813,11 +813,77 @@
   let wishlistCleanupDone = false;
   let wishlistEmptyMsg = null;
 
+  function injectBookDetailNote() {
+    const m = window.location.pathname.match(/\/book\/(\d+)/);
+    if (!m) return;
+    const bookId = m[1];
+
+    const remark = cachedLists.wishlistRemarks[bookId] || '';
+    const tags = cachedLists.wishlistTags[bookId] || [];
+
+    const infoText = document.querySelector('.book-info-text');
+    if (!infoText) return;
+
+    let noteDiv = infoText.querySelector('.teh-book-detail-note');
+    const hash = remark + '|' + tags.join(',');
+
+    if (!remark && tags.length === 0) {
+      noteDiv?.remove();
+      return;
+    }
+
+    if (noteDiv && noteDiv.dataset.tehHash === hash) return;
+
+    if (!noteDiv) {
+      noteDiv = document.createElement('div');
+      noteDiv.className = 'teh-book-detail-note';
+      infoText.appendChild(noteDiv);
+    }
+
+    noteDiv.dataset.tehHash = hash;
+    noteDiv.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'teh-book-detail-note-header';
+    const label = document.createElement('span');
+    label.textContent = '📝 待購備註';
+    const editBtn = document.createElement('button');
+    editBtn.className = 'teh-book-detail-note-edit';
+    editBtn.textContent = '編輯';
+    editBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      showRemarkPopover(editBtn, bookId);
+    });
+    header.appendChild(label);
+    header.appendChild(editBtn);
+    noteDiv.appendChild(header);
+
+    if (remark) {
+      const text = document.createElement('div');
+      text.className = 'teh-book-detail-note-text';
+      text.textContent = remark;
+      noteDiv.appendChild(text);
+    }
+
+    if (tags.length > 0) {
+      const tagsDiv = document.createElement('div');
+      tagsDiv.className = 'teh-wishlist-tags-display';
+      tags.forEach(tag => {
+        const chip = document.createElement('span');
+        chip.className = 'teh-wishlist-tag-chip';
+        chip.textContent = tag;
+        tagsDiv.appendChild(chip);
+      });
+      noteDiv.appendChild(tagsDiv);
+    }
+  }
+
   function run(refreshExisting = false) {
     injectPriceInfo();
     checkLists();
     handleBookPageWishlistButton();
     injectWishlistRemarks(refreshExisting);
+    injectBookDetailNote();
   }
 
   initStorage();

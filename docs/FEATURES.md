@@ -114,7 +114,20 @@
 - 點擊浮窗外的頁面區域（outside click）
 - **例外**：若外部點擊目標位於 `[role="dialog"]` 內（如讀墨的「成功加入」確認視窗），**不關閉浮窗**
 
-### 3.2 待購清單頁（備註顯示與編輯）
+### 3.2 書籍詳情頁（備註與標籤顯示）
+
+**觸發條件**：
+- URL 符合 `/book/\d+`
+- `cachedLists.wishlistRemarks[bookId]` 或 `cachedLists.wishlistTags[bookId]` 有資料
+
+**行為**：
+- 在 `.book-info-text` 末端（`.book-price` 之後）插入 `.teh-book-detail-note` 區塊
+- 區塊顯示：標題列「📝 待購備註」+ 右側「編輯」按鈕、備註文字（若有）、tag chip（若有）
+- 若備註與標籤皆為空，移除現有區塊
+- 重複呼叫時以 `data-teh-hash`（remark + tags 字串）比對，內容相同則略過，避免 MutationObserver 無限觸發
+- 點擊「編輯」按鈕：開啟現有的 `showRemarkPopover()`，儲存後自動重新渲染
+
+### 3.3 待購清單頁（備註顯示與編輯）
 
 **觸發條件**：`window.location.hash.includes('#wishlist')`
 

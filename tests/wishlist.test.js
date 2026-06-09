@@ -815,3 +815,109 @@ describe('待購清單最優價格注入測試 (Fixture)', () => {
     expect(hints.length).toBe(1);
   });
 });
+
+describe('書籍詳情頁待購備註注入測試 (Fixture)', () => {
+  let EXTENSION_ID;
+  let DETAIL_FIXTURE_URL;
+  const CONTENT_JS = path.resolve(__dirname, '../content.js');
+
+  let page;
+
+  beforeAll(() => {
+    EXTENSION_ID = global.EXTENSION_ID;
+    DETAIL_FIXTURE_URL = `chrome-extension://${EXTENSION_ID}/tests/fixtures/book_detail.html`;
+  });
+
+  async function setStorage(data = {}) {
+    const setup = await global.browser.newPage();
+    await setup.goto(`chrome-extension://${EXTENSION_ID}/management.html`);
+    await setup.evaluate(async (d) => new Promise(resolve => chrome.storage.sync.set(d, resolve)), data);
+    await setup.close();
+  }
+
+  async function loadDetailFixture(bookId = '12345') {
+    await page.goto(DETAIL_FIXTURE_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate((id) => { history.pushState({}, '', `/book/${id}`); }, bookId);
+    await page.evaluate(() => {
+      window.TEH = {
+        findSite: () => ({
+          getPriceInfo: () => null,
+          getBlacklistTargets: () => ({ global: null, blocks: [] })
+        })
+      };
+    });
+    const code = fs.readFileSync(CONTENT_JS, 'utf8');
+    await page.evaluate(code);
+  }
+
+  beforeEach(async () => {
+    page = await global.browser.newPage();
+  });
+
+  afterEach(async () => {
+    if (page && !page.isClosed()) await page.close();
+  });
+
+  test('31. 有備註和標籤時應注入 .teh-book-detail-note 並顯示兩者', async () => {
+    await setStorage({
+      wishlistRemarks: { '12345': '這本很值得買' },
+      wishlistTags:    { '12345': ['奇幻', '想買'] }
+    });
+    await loadDetailFixture('12345');
+    await page.waitForSelector('.teh-book-detail-note', { timeout: 3000 });
+
+    const remarkText = await page.$eval('.teh-book-detail-note-text', el => el.textContent);
+    expect(remarkText).toBe('這本很值得買');
+
+    const chips = await page.$$eval('.teh-book-detail-note .teh-wishlist-tag-chip', els => els.map(e => e.textContent));
+    expect(chips).toContain('奇幻');
+    expect(chips).toContain('想買');
+  });
+
+  test('32. 無備註無標籤時不應注入 .teh-book-detail-note', async () => {
+    await setStorage({ wishlistRemarks: {}, wishlistTags: {} });
+    await loadDetailFixture('12345');
+    await new Promise(r => setTimeout(r, 500));
+
+    const note = await page.$('.teh-book-detail-note');
+    expect(note).toBeNull();
+  });
+
+  test('33. Storage 更新後應重新渲染備註區塊', async () => {
+    await setStorage({ wishlistRemarks: {}, wishlistTags: {} });
+    await loadDetailFixture('12345');
+    await new Promise(r => setTimeout(r, 300));
+
+    const beforeNote = await page.$('.teh-book-detail-note');
+    expect(beforeNote).toBeNull();
+
+    await page.evaluate(() =>
+      new Promise(resolve =>
+        chrome.storage.sync.set({
+          wishlistRemarks: { '12345': '延遲備註' },
+          wishlistTags:    { '12345': ['延遲Tag'] }
+        }, resolve)
+      )
+    );
+    await new Promise(r => setTimeout(r, 500));
+
+    const remarkText = await page.$eval('.teh-book-detail-note-text', el => el.textContent);
+    expect(remarkText).toBe('延遲備註');
+
+    const chips = await page.$$eval('.teh-book-detail-note .teh-wishlist-tag-chip', els => els.map(e => e.textContent));
+    expect(chips).toContain('延遲Tag');
+  });
+
+  test('34. 重複觸發 run() 不應重複注入（idempotency）', async () => {
+    await setStorage({
+      wishlistRemarks: { '12345': '備註' },
+      wishlistTags:    { '12345': ['tag'] }
+    });
+    await loadDetailFixture('12345');
+    await page.waitForSelector('.teh-book-detail-note', { timeout: 3000 });
+    await new Promise(r => setTimeout(r, 700));
+
+    const count = await page.$$eval('.teh-book-detail-note', els => els.length);
+    expect(count).toBe(1);
+  });
+});
