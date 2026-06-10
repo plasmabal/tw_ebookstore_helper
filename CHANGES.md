@@ -4,11 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Upcoming Version]
 ### Added
-* **黑名單書籍封面刷淡**：列表、分類、作者等頁面中，屬於黑名單的書籍封面圖片會一併刷淡（灰階 + 降低透明度），hover 時稍微恢復，與文字打叉效果相互呼應。
 
 ### Changed
 
 ### Fixed
+
+## [0.5.2] - 2026-06-10
+### Added
+* **黑名單書籍封面刷淡**：列表、分類、作者等頁面中，屬於黑名單的書籍封面圖片會一併刷淡（灰階 + 降低透明度），hover 時稍微恢復，與文字打叉效果相互呼應。
 
 ## [0.5.1] - 2026-06-09
 ### Added
