@@ -12,7 +12,9 @@
 ### 1.1 黑名單
 
 - 符合名單的出版社或作者名稱，套用 `teh-blacklisted-text` class（變淡 + 刪除線）
-- 若某書籍區塊（如搜尋結果列、書籍詳情頁）含有黑名單的作者或出版社，該書名同時套用 `teh-blacklisted-title` class
+- 若某書籍區塊（如搜尋結果列、書籍詳情頁）含有黑名單的作者或出版社：
+  - 書名套用 `teh-blacklisted-title` class（變淡 + 刪除線）
+  - 區塊本身套用 `teh-blacklisted-block` class，使其內的 `img`（封面）一併刷淡（opacity 0.25 + grayscale 60%）；hover 時恢復至 opacity 0.6 + grayscale 20%
 - 文字比對須先 `.trim()`，避免前後空白導致誤判
 
 ### 1.2 白名單（優良名單）

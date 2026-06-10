@@ -783,6 +783,8 @@
               if (isAnyBlacklisted) els.title.classList.add('teh-blacklisted-title');
               else els.title.classList.remove('teh-blacklisted-title');
             }
+            if (isAnyBlacklisted) block.classList.add('teh-blacklisted-block');
+            else block.classList.remove('teh-blacklisted-block');
           });
         });
       }

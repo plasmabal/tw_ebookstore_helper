@@ -209,6 +209,18 @@
   display: block;
 }
 
+/* 黑名單書籍封面刷淡 */
+.teh-blacklisted-block img {
+  opacity: 0.25;
+  filter: grayscale(60%);
+  transition: opacity 0.3s, filter 0.3s;
+}
+
+.teh-blacklisted-block:hover img {
+  opacity: 0.6;
+  filter: grayscale(20%);
+}
+
 /* 黑名單文字打叉效果 */
 .teh-blacklisted-text {
   position: relative;
