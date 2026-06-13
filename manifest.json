@@ -27,6 +27,11 @@
       ],
       "js": [
         "sites.js",
+        "teh-chip-input.js",
+        "teh-storage.js",
+        "teh-blacklist.js",
+        "teh-price.js",
+        "teh-wishlist.js",
         "content.js"
       ],
       "css": [

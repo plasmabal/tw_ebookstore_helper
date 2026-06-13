@@ -54,3 +54,15 @@ popup.js/html          # 點擊 extension icon 的小視窗
 - Extension ID（hardcoded 於所有測試）：`mmmgehlnhopcejokbbdjblejkkbbahek`
 - Wishlist fixture 測試用 `page.evaluate(code)` 注入 content.js（繞過 MV3 CSP），**不可**改用 `page.addScriptTag({ path })`
 - 注入前需先設定 `window.TEH` mock，否則 content.js IIFE 會提早 return
+
+### Headless 模式調查結論（2026-06-13，Chrome 148 / Puppeteer 24.x / macOS）
+
+三種方案都已實測，均無法同時滿足「不搶前景焦點」+ 「可載入 MV3 Extension」：
+
+| 方案 | 結果 |
+|---|---|
+| `headless: true`（new headless） | 每次 `newPage` + `goto` 都把 "Google Chrome for Testing" 拉到前景，整個測試期間持續搶焦點 |
+| `headless: 'shell'`（chrome-headless-shell） | 不搶焦點，但 `chrome.management` 不存在，無法載入 Extension，測試直接失敗 |
+| `headless: true` + `LSUIElement=true`（修改 Info.plist） | 瀏覽器無法啟動（launch error: Code null） |
+
+**結論**：目前在 macOS 開發機上，執行含 MV3 Extension 的 Puppeteer 測試必然會短暫佔用前景。`tests/setup.js` 維持 `headless: false`，這是已知限制，不需再嘗試改善。

@@ -122,141 +122,22 @@ function loadSettings() {
 // --- Tag Chip Input Component ---
 
 function createTagChipInput(initialTags = []) {
-  const tags = [...initialTags];
-
-  const wrapper = document.createElement('div');
-  wrapper.className = 'tag-chip-input-wrapper';
-
-  const chipsRow = document.createElement('div');
-  chipsRow.className = 'tag-chips-row';
-
-  const textInput = document.createElement('input');
-  textInput.type = 'text';
-  textInput.className = 'tag-text-input';
-  textInput.placeholder = '新增標籤 (Enter 確認)…';
-  textInput.maxLength = 20;
-
-  const dropdown = document.createElement('ul');
-  dropdown.className = 'tag-autocomplete-dropdown';
-  dropdown.style.display = 'none';
-
-  function renderChips() {
-    chipsRow.innerHTML = '';
-    tags.forEach((tag, i) => {
-      const chip = document.createElement('span');
-      chip.className = 'tag-chip';
-
-      const label = document.createElement('span');
-      label.textContent = tag;
-
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'tag-chip-remove';
-      removeBtn.setAttribute('aria-label', `移除 ${tag}`);
-      removeBtn.textContent = '×';
-      removeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        tags.splice(i, 1);
-        renderChips();
-      });
-
-      chip.appendChild(label);
-      chip.appendChild(removeBtn);
-      chipsRow.appendChild(chip);
-    });
-    chipsRow.appendChild(textInput);
-  }
-
-  function addTag(value) {
-    const tag = value.trim().slice(0, 20);
-    if (!tag || tags.includes(tag)) { textInput.value = ''; return; }
-    tags.push(tag);
-    renderChips();
-    textInput.value = '';
-    hideDropdown();
-    textInput.focus();
-  }
-
-  let highlightedIdx = -1;
-
-  function showDropdown(query) {
-    if (!query) { hideDropdown(); return; }
-    const q = query.toLowerCase();
-    const suggestions = listTagPool
-      .filter(t => t.toLowerCase().includes(q) && !tags.includes(t))
-      .slice(0, 8);
-
-    if (!suggestions.length) { hideDropdown(); return; }
-
-    highlightedIdx = -1;
-    dropdown.innerHTML = '';
-    suggestions.forEach(tag => {
-      const li = document.createElement('li');
-      li.textContent = tag;
-      li.addEventListener('mousedown', (e) => {
-        e.preventDefault(); // prevent blur before click
-        addTag(tag);
-      });
-      dropdown.appendChild(li);
-    });
-    dropdown.style.display = 'block';
-  }
-
-  function hideDropdown() {
-    dropdown.style.display = 'none';
-    dropdown.innerHTML = '';
-    highlightedIdx = -1;
-  }
-
-  function updateHighlight() {
-    dropdown.querySelectorAll('li').forEach((li, i) => {
-      li.classList.toggle('highlighted', i === highlightedIdx);
-    });
-  }
-
-  textInput.addEventListener('input', () => showDropdown(textInput.value));
-  textInput.addEventListener('blur', hideDropdown);
-  textInput.addEventListener('keydown', (e) => {
-    const isOpen = dropdown.style.display !== 'none';
-    const items  = dropdown.querySelectorAll('li');
-
-    if (isOpen && e.key === 'ArrowDown') {
-      e.preventDefault();
-      highlightedIdx = Math.min(highlightedIdx + 1, items.length - 1);
-      updateHighlight();
-      return;
-    }
-    if (isOpen && e.key === 'ArrowUp') {
-      e.preventDefault();
-      highlightedIdx = Math.max(highlightedIdx - 1, -1);
-      updateHighlight();
-      return;
-    }
-    if (e.key === 'Escape') {
-      hideDropdown();
-      return;
-    }
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      if (isOpen && highlightedIdx >= 0) {
-        addTag(items[highlightedIdx].textContent);
-      } else {
-        addTag(textInput.value);
-      }
-    } else if (e.key === 'Backspace' && !textInput.value && tags.length > 0) {
-      tags.pop();
-      renderChips();
-    }
+  return window.TEH.createChipInput({
+    classes: {
+      wrapper:         'tag-chip-input-wrapper',
+      chipsRow:        'tag-chips-row',
+      textInput:       'tag-text-input',
+      dropdown:        'tag-autocomplete-dropdown',
+      chip:            'tag-chip',
+      chipRemove:      'tag-chip-remove',
+      ariaRemoveLabel: (tag) => `移除 ${tag}`
+    },
+    getSuggestions: (q, currentTags) =>
+      listTagPool.filter(t => t.toLowerCase().includes(q) && !currentTags.includes(t)),
+    placeholder: '新增標籤 (Enter 確認)…',
+    maxSuggestions: 8,
+    initialTags
   });
-
-  renderChips();
-  wrapper.appendChild(chipsRow);
-  wrapper.appendChild(dropdown);
-
-  wrapper.getTags = () => [...tags];
-  wrapper.reset = () => { tags.splice(0); renderChips(); textInput.value = ''; };
-
-  return wrapper;
 }
 
 // --- List Rendering ---

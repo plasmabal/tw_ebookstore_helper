@@ -2,6 +2,12 @@ const fs   = require('fs');
 const path = require('path');
 const testData = require('./testData.json');
 
+const CHIP_INPUT_JS = path.resolve(__dirname, '../teh-chip-input.js');
+const STORAGE_JS    = path.resolve(__dirname, '../teh-storage.js');
+const BLACKLIST_JS  = path.resolve(__dirname, '../teh-blacklist.js');
+const PRICE_JS      = path.resolve(__dirname, '../teh-price.js');
+const WISHLIST_JS   = path.resolve(__dirname, '../teh-wishlist.js');
+
 // 待購清單最優價格計算（與 sites.js 邏輯一致，fixture 測試用）
 const WISHLIST_PRICE_OPTIONS = (price) => [
   { id: 'd75', label: '75折',  cost: Math.round(price * 0.75) },
@@ -35,17 +41,18 @@ describe('待購清單備註注入測試 (Fixture)', () => {
   async function loadFixture() {
     await page.goto(FIXTURE_URL, { waitUntil: 'domcontentloaded' });
 
-    // window.TEH must exist before the content.js IIFE runs.
-    // page.evaluate() uses CDP Runtime.evaluate which bypasses extension page CSP,
-    // unlike page.addScriptTag() which injects a <script> tag and is blocked by
-    // the default MV3 `script-src 'self'` policy.
+    // 注入順序與 manifest.json 一致。不可整個覆蓋 window.TEH，
+    // 每個模組都用 window.TEH = window.TEH || {} 安全地掛載。
+    await page.evaluate(fs.readFileSync(CHIP_INPUT_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(STORAGE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(BLACKLIST_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(PRICE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(WISHLIST_JS, 'utf8'));
     await page.evaluate(() => {
-      window.TEH = {
-        findSite: () => ({
-          getPriceInfo: () => null,
-          getBlacklistTargets: () => ({ global: null, blocks: [] })
-        })
-      };
+      window.TEH.findSite = () => ({
+        getPriceInfo: () => null,
+        getBlacklistTargets: () => ({ global: null, blocks: [] })
+      });
     });
 
     const code = fs.readFileSync(CONTENT_JS, 'utf8');
@@ -713,30 +720,33 @@ describe('待購清單最優價格注入測試 (Fixture)', () => {
 
   async function loadPricesFixture() {
     await page.goto(PRICES_FIXTURE_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(fs.readFileSync(CHIP_INPUT_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(STORAGE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(BLACKLIST_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(PRICE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(WISHLIST_JS, 'utf8'));
     // getPriceInfo mirrors the wishlist block in sites.js getPriceInfo()
     // (「待購清單頁（/checkout/cart#wishlist）」section).
     // If that logic changes, update this mock to match.
     await page.evaluate(() => {
-      window.TEH = {
-        findSite: () => ({
-          getPriceInfo: (doc) => {
-            if (window.location.hash !== '#wishlist') return null;
-            const results = [];
-            for (const li of doc.querySelectorAll('li.cart-list-item')) {
-              if ([...li.querySelectorAll('span.text-attention')].some(s => s.textContent.includes('停止銷售'))) continue;
-              const priceEl = li.querySelector('.item-price');
-              if (!priceEl) continue;
-              const match = (priceEl.getAttribute('aria-label') || '').match(/單價(\d+)元/);
-              const ebookPrice = match ? parseInt(match[1], 10) : parseInt(priceEl.textContent.replace(/[^\d]/g, ''), 10);
-              if (!ebookPrice) continue;
-              const container = li.querySelector('.item-price-box__main');
-              if (container) results.push({ price: ebookPrice, isSale: !!li.querySelector('.badge.bg-notice'), container, isTokenApplicable: true });
-            }
-            return results.length ? results : null;
-          },
-          getBlacklistTargets: () => ({ global: null, blocks: [] })
-        })
-      };
+      window.TEH.findSite = () => ({
+        getPriceInfo: (doc) => {
+          if (window.location.hash !== '#wishlist') return null;
+          const results = [];
+          for (const li of doc.querySelectorAll('li.cart-list-item')) {
+            if ([...li.querySelectorAll('span.text-attention')].some(s => s.textContent.includes('停止銷售'))) continue;
+            const priceEl = li.querySelector('.item-price');
+            if (!priceEl) continue;
+            const match = (priceEl.getAttribute('aria-label') || '').match(/單價(\d+)元/);
+            const ebookPrice = match ? parseInt(match[1], 10) : parseInt(priceEl.textContent.replace(/[^\d]/g, ''), 10);
+            if (!ebookPrice) continue;
+            const container = li.querySelector('.item-price-box__main');
+            if (container) results.push({ price: ebookPrice, isSale: !!li.querySelector('.badge.bg-notice'), container, isTokenApplicable: true });
+          }
+          return results.length ? results : null;
+        },
+        getBlacklistTargets: () => ({ global: null, blocks: [] })
+      });
     });
     const code = fs.readFileSync(CONTENT_JS, 'utf8');
     await page.evaluate(code);
@@ -838,13 +848,16 @@ describe('書籍詳情頁待購備註注入測試 (Fixture)', () => {
   async function loadDetailFixture(bookId = '12345') {
     await page.goto(DETAIL_FIXTURE_URL, { waitUntil: 'domcontentloaded' });
     await page.evaluate((id) => { history.pushState({}, '', `/book/${id}`); }, bookId);
+    await page.evaluate(fs.readFileSync(CHIP_INPUT_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(STORAGE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(BLACKLIST_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(PRICE_JS, 'utf8'));
+    await page.evaluate(fs.readFileSync(WISHLIST_JS, 'utf8'));
     await page.evaluate(() => {
-      window.TEH = {
-        findSite: () => ({
-          getPriceInfo: () => null,
-          getBlacklistTargets: () => ({ global: null, blocks: [] })
-        })
-      };
+      window.TEH.findSite = () => ({
+        getPriceInfo: () => null,
+        getBlacklistTargets: () => ({ global: null, blocks: [] })
+      });
     });
     const code = fs.readFileSync(CONTENT_JS, 'utf8');
     await page.evaluate(code);
