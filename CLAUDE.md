@@ -18,13 +18,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用指令
 
 ```bash
-npm test                                        # 執行所有測試
+npm test                                        # 快速離線測試（fixture + 純函數，不需網路）
+npm run test:e2e                                # 真站 E2E 測試（需網路，按需手動跑）
+npm run test:all                                # 執行全部測試
 npx jest --testPathPatterns="wishlist"          # 執行特定測試檔
 npx jest --testPathPatterns="wishlist" --no-coverage  # 執行但不產生 coverage 報告
 npm run build                                   # 打包 extension（產出 zip）
 ```
 
-測試使用真實 Chromium + Extension，需要有網路連線（Readmoo、Kobo 的 E2E 測試會連線至真實網站）。博客來測試因 Cloudflare WAF 全部 skip。
+**測試分流**：
+- `npm test`（`test:unit`）：`logic.test.js`、`wishlist.test.js`、`management.test.js` — 離線 fixture 測試，秒級完成，日常開發使用此指令。
+- `npm run test:e2e`：`content.test.js`、`books.test.js`（skip）、`kobo.test.js`、`readmoo_prices.test.js` — 需連線真實網站，慢且脆，按需手動執行。博客來測試因 Cloudflare WAF 全部 skip。
 
 ## 架構概覽
 

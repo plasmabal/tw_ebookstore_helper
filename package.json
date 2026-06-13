@@ -4,7 +4,10 @@
   "description": "這是一個專為台灣電子書讀者開發的 Chrome 擴充功能，旨在優化各家電子書平台的購書體驗。目前主要針對 Readmoo 讀墨提供便利的價格計算與領書額度建議功能。",
   "main": "content.js",
   "scripts": {
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "npm run test:unit",
+    "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPatterns='logic|wishlist|management'",
+    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPatterns='content|books|kobo|readmoo_prices'",
+    "test:all": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "build": "node scripts/build.js"
   },
   "keywords": [],
