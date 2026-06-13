@@ -76,7 +76,8 @@ function migrateLocalToSync() {
   return new Promise((resolve) => {
     chrome.storage.local.get(['localToSyncMigrated'], (check) => {
       if (check.localToSyncMigrated) { resolve(); return; }
-      const migrateKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'schemaVersion', 'readmooAutoClosePreviewDialog'];
+      // ⚠️ 須與 teh-storage.js 的 MIGRATE_KEYS 保持完整聯集一致
+      const migrateKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates', 'schemaVersion', 'readmooAutoClosePreviewDialog'];
       chrome.storage.local.get(migrateKeys, (localData) => {
         const data = {};
         migrateKeys.forEach(k => { if (localData[k] !== undefined) data[k] = localData[k]; });

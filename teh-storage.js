@@ -15,10 +15,18 @@ window.TEH.state = {
 };
 
 (function() {
+  // 用於 cache 更新與 onChanged 監聽（不含 content script 不需處理的 key）
   const SYNC_KEYS = [
     'publisherBlacklist', 'authorBlacklist',
     'publisherWhitelist', 'authorWhitelist',
     'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates'
+  ];
+
+  // 用於 local→sync 遷移——須涵蓋 management.js migrateKeys 的完整聯集。
+  // ⚠️ 若 management.js 的 migrateKeys 有異動，此處須同步更新。
+  const MIGRATE_KEYS = [
+    ...SYNC_KEYS,
+    'schemaVersion', 'readmooAutoClosePreviewDialog'
   ];
 
   const state = window.TEH.state;
@@ -104,10 +112,10 @@ window.TEH.state = {
       }
       // Sync is empty — migrate from local if available (first run after update).
       // Set localToSyncMigrated so management.js's migrateLocalToSync() skips the duplicate.
-      chrome.storage.local.get(SYNC_KEYS, (localRes) => {
+      chrome.storage.local.get(MIGRATE_KEYS, (localRes) => {
         if (chrome.runtime.lastError) return;
         const data = {};
-        SYNC_KEYS.forEach(k => { if (localRes[k] !== undefined) data[k] = localRes[k]; });
+        MIGRATE_KEYS.forEach(k => { if (localRes[k] !== undefined) data[k] = localRes[k]; });
         if (Object.keys(data).length) {
           chrome.storage.sync.set(data);
           chrome.storage.local.set({ localToSyncMigrated: true });
