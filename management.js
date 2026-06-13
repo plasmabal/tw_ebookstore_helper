@@ -381,7 +381,7 @@ function renderWishlistTagManagerContent(containerEl, tagCounts, templateTags, o
   containerEl.appendChild(ul);
 }
 
-function buildWishlistTagItem(tag, countLabel, onRename, onDelete) {
+function buildTagManagerItem({ tag, countLabel, onRename, onDelete, confirmMessage }) {
   const li = document.createElement('li');
   li.className = 'tag-manager-item';
 
@@ -401,18 +401,20 @@ function buildWishlistTagItem(tag, countLabel, onRename, onDelete) {
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-tag-delete';
   deleteBtn.textContent = '刪除';
-  deleteBtn.onclick = () => {
-    const msg = countLabel === '(0 本)'
-      ? `確定要刪除儲存的標籤「${tag}」？`
-      : `確定要刪除標籤「${tag}」？\n此標籤將從所有含有此標籤的書籍中移除。`;
-    if (confirm(msg)) onDelete(tag);
-  };
+  deleteBtn.onclick = () => { if (confirm(confirmMessage)) onDelete(tag); };
 
   li.appendChild(nameSpan);
   li.appendChild(countSpan);
   li.appendChild(renameBtn);
   li.appendChild(deleteBtn);
   return li;
+}
+
+function buildWishlistTagItem(tag, countLabel, onRename, onDelete) {
+  const confirmMessage = countLabel === '(0 本)'
+    ? `確定要刪除儲存的標籤「${tag}」？`
+    : `確定要刪除標籤「${tag}」？\n此標籤將從所有含有此標籤的書籍中移除。`;
+  return buildTagManagerItem({ tag, countLabel, onRename, onDelete, confirmMessage });
 }
 
 function renderTagManagerContent(containerEl, tagCounts, onRename, onDelete) {
@@ -431,36 +433,13 @@ function renderTagManagerContent(containerEl, tagCounts, onRename, onDelete) {
   ul.className = 'tag-manager-list';
 
   tags.forEach(tag => {
-    const li = document.createElement('li');
-    li.className = 'tag-manager-item';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'tag-manager-name';
-    nameSpan.textContent = tag;
-
-    const countSpan = document.createElement('span');
-    countSpan.className = 'tag-manager-count';
-    countSpan.textContent = `${tagCounts[tag]} 個條目`;
-
-    const renameBtn = document.createElement('button');
-    renameBtn.className = 'btn-tag-rename';
-    renameBtn.textContent = '重命名';
-    renameBtn.onclick = () => startInlineRename(li, tag, nameSpan, renameBtn, deleteBtn, onRename);
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn-tag-delete';
-    deleteBtn.textContent = '刪除';
-    deleteBtn.onclick = () => {
-      if (confirm(`確定要刪除標籤「${tag}」？\n此標籤將從所有 ${tagCounts[tag]} 個條目中移除。`)) {
-        onDelete(tag);
-      }
-    };
-
-    li.appendChild(nameSpan);
-    li.appendChild(countSpan);
-    li.appendChild(renameBtn);
-    li.appendChild(deleteBtn);
-    ul.appendChild(li);
+    ul.appendChild(buildTagManagerItem({
+      tag,
+      countLabel: `${tagCounts[tag]} 個條目`,
+      onRename,
+      onDelete,
+      confirmMessage: `確定要刪除標籤「${tag}」？\n此標籤將從所有 ${tagCounts[tag]} 個條目中移除。`
+    }));
   });
 
   containerEl.appendChild(ul);

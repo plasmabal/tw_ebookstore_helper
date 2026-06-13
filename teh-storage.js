@@ -102,12 +102,16 @@ window.TEH.state = {
         run(true);
         return;
       }
-      // Sync is empty — migrate from local if available (first run after update)
+      // Sync is empty — migrate from local if available (first run after update).
+      // Set localToSyncMigrated so management.js's migrateLocalToSync() skips the duplicate.
       chrome.storage.local.get(SYNC_KEYS, (localRes) => {
         if (chrome.runtime.lastError) return;
         const data = {};
         SYNC_KEYS.forEach(k => { if (localRes[k] !== undefined) data[k] = localRes[k]; });
-        if (Object.keys(data).length) chrome.storage.sync.set(data);
+        if (Object.keys(data).length) {
+          chrome.storage.sync.set(data);
+          chrome.storage.local.set({ localToSyncMigrated: true });
+        }
         updateCache(localRes);
         run(true);
       });
