@@ -47,7 +47,7 @@ navItems.forEach(item => {
 // --- Migration System ---
 
 const MIGRATIONS = {
-  '0.2.0': () => new Promise((resolve) => {
+  '0.2.0': () => new Promise((resolve, reject) => {
     chrome.storage.sync.get([...LIST_KEYS, 'wishlistTags'], (res) => {
       const updates = {};
       LIST_KEYS.forEach(key => {
@@ -56,7 +56,10 @@ const MIGRATIONS = {
         }
       });
       if (!res.wishlistTags) updates.wishlistTags = {};
-      chrome.storage.sync.set(updates, resolve);
+      chrome.storage.sync.set(updates, () => {
+        if (chrome.runtime?.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
     });
   })
 };
@@ -69,7 +72,14 @@ async function runMigrations() {
   const startIdx = currentIdx === -1 ? SCHEMA_VERSIONS.length : currentIdx + 1;
   for (const version of SCHEMA_VERSIONS.slice(startIdx)) {
     const fn = MIGRATIONS[version];
-    if (fn) await fn();
+    if (!fn) continue;
+    try {
+      await fn();
+    } catch (e) {
+      // 遷移寫入失敗：不更新 schemaVersion，讓下次開啟 options 頁時重試
+      console.warn(`TEH: migration to ${version} failed`, e);
+      return;
+    }
   }
   await chrome.storage.sync.set({ schemaVersion: CURRENT_SCHEMA });
 }

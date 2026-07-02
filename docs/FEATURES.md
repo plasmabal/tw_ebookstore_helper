@@ -229,6 +229,7 @@
 
 - 啟動時自動執行 `runMigrations()`
 - 0.1.0 → 0.2.0：為所有清單條目補上 `tags: []`；建立 `wishlistTags: {}`
+- 遷移寫入失敗（如超過 sync 配額）時記錄 warning 且**不更新** `schemaVersion`，下次開啟 options 頁自動重試；匯入備份後的重跑遷移亦同（匯入本身仍視為成功）
 
 ### 4.6 Local → Sync 一次性遷移
 

@@ -51,6 +51,19 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     if (page && !page.isClosed()) await page.close();
   });
 
+  // 等待第一本書的備註文字渲染完成再互動：
+  // 容器注入可能先於 storage cache 填入，太早點擊會讓編輯模式預填到空白（計時競態）
+  async function waitForRemarkText(expected) {
+    await page.waitForFunction(
+      (t) => {
+        const el = document.querySelector('.teh-wishlist-remark-text');
+        return el && el.textContent === t;
+      },
+      { timeout: 3000 },
+      expected
+    );
+  }
+
   test('1. 有備註的書籍應注入備註文字與 Tag chip', async () => {
     await setStorage({
       wishlistRemarks: { '12345': '想購買這本書' },
@@ -58,6 +71,12 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+    // 容器注入可能先於 storage cache 填入（refreshExisting 重繪尚未執行），
+    // 改用條件等待避免取樣到空白的初次渲染（計時競態）
+    await page.waitForFunction(
+      () => document.body.innerHTML.includes('奇幻') && document.body.innerHTML.includes('想買'),
+      { timeout: 3000 }
+    );
 
     // 兩本書都應有容器
     const containers = await page.$$('.teh-wishlist-remark-container');
@@ -95,6 +114,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+    await waitForRemarkText('現有備註內容');
 
     const firstContainer = await page.$('.teh-wishlist-remark-container');
     await firstContainer.click();
@@ -114,6 +134,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+    await waitForRemarkText('舊備註');
 
     const firstContainer = await page.$('.teh-wishlist-remark-container');
     await firstContainer.click();
@@ -145,6 +166,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+    await waitForRemarkText('原始備註');
 
     const firstContainer = await page.$('.teh-wishlist-remark-container');
     await firstContainer.click();
