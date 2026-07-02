@@ -509,7 +509,8 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
-    await new Promise(r => setTimeout(r, 500));
+    // 清理需連續兩輪觀察到相同集合才執行，等待時間需涵蓋第二輪確認（600ms 保底重跑）
+    await new Promise(r => setTimeout(r, 1200));
 
     const storage = await page.evaluate(() =>
       new Promise(resolve => chrome.storage.sync.get(['wishlistTagTemplates', 'wishlistTags'], resolve))
@@ -667,7 +668,8 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     });
     await loadFixture();
     await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
-    await new Promise(r => setTimeout(r, 500));
+    // 清理需連續兩輪觀察到相同集合才執行，等待時間需涵蓋第二輪確認（600ms 保底重跑）
+    await new Promise(r => setTimeout(r, 1200));
 
     const storage = await page.evaluate(() =>
       new Promise(resolve =>
@@ -678,6 +680,65 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     expect(storage.wishlistRemarks['12345']).toBe('保留備註');
     expect(storage.wishlistRemarks['99999']).toBeUndefined();
     expect(storage.wishlistTags['99999']).toBeUndefined();
+  });
+
+  test('6a. Auto-cleanup 防護：頁面抓不到任何 bookId 時不應清除資料', async () => {
+    await setStorage({
+      wishlistRemarks: { '12345': '備註A', '99999': '備註B' },
+      wishlistTags:    {}
+    });
+    // 載入 fixture 後移除所有 cover link，模擬站方 DOM 改版導致 selector 全部失效
+    await page.goto(FIXTURE_URL, { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.querySelectorAll('.item-cover-link').forEach(el => el.remove());
+      window.TEH = {
+        findSite: () => ({
+          getPriceInfo: () => null,
+          getBlacklistTargets: () => ({ global: null, blocks: [] })
+        })
+      };
+    });
+    await injectContentScripts(page);
+    await new Promise(r => setTimeout(r, 1200));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistRemarks'], resolve))
+    );
+    expect(storage.wishlistRemarks['12345']).toBe('備註A');
+    expect(storage.wishlistRemarks['99999']).toBe('備註B');
+  });
+
+  test('6b. 儲存失敗（超過單一 key 8KB 上限）應顯示錯誤 toast、保留編輯模式且不寫入', async () => {
+    await setStorage({
+      wishlistRemarks: { '12345': '原備註' },
+      wishlistTags:    {}
+    });
+    await loadFixture();
+    await page.waitForSelector('.teh-wishlist-remark-container', { timeout: 3000 });
+
+    const firstContainer = await page.$('.teh-wishlist-remark-container');
+    await firstContainer.click();
+    await new Promise(r => setTimeout(r, 100));
+
+    // 填入超過 QUOTA_BYTES_PER_ITEM (8KB) 的備註使 sync.set 失敗
+    await page.evaluate(() => {
+      document.querySelector('.teh-wishlist-remark-editor').value = 'x'.repeat(9000);
+    });
+    const saveBtn = await firstContainer.$('.teh-btn-save');
+    await saveBtn.click();
+    await new Promise(r => setTimeout(r, 500));
+
+    // toast 出現、編輯模式保留（未呼叫成功 callback）
+    const toast = await page.$('.teh-toast');
+    expect(toast).not.toBeNull();
+    const editor = await page.$('.teh-wishlist-remark-editor');
+    expect(editor).not.toBeNull();
+
+    // storage 與 cache 都不應被污染
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['wishlistRemarks'], resolve))
+    );
+    expect(storage.wishlistRemarks['12345']).toBe('原備註');
   });
 });
 

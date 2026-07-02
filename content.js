@@ -47,6 +47,16 @@ if (typeof module !== 'undefined') {
   module.exports = { TEH_promoteOrphanTags, TEH_extractDirectText, TEH_computePriceOptions };
 }
 
+// 掛到 window.TEH.logic 讓其他模組以顯式命名空間取用（runtime 呼叫，載入順序無虞）
+if (typeof window !== 'undefined') {
+  window.TEH = window.TEH || {};
+  window.TEH.logic = {
+    promoteOrphanTags:   TEH_promoteOrphanTags,
+    extractDirectText:   TEH_extractDirectText,
+    computePriceOptions: TEH_computePriceOptions
+  };
+}
+
 // ─── Content Script Orchestrator ─────────────────────────────────────────────
 
 if (typeof window !== 'undefined') (function() {
@@ -67,13 +77,20 @@ if (typeof window !== 'undefined') (function() {
 
   window.addEventListener('hashchange', () => {
     window.TEH.state.wishlistCleanupDone = false;
+    window.TEH.state.wishlistCleanupPendingIds = null;
     window.TEH.state.activeTagFilters.clear();
     run();
   });
 
+  // debounce 後再等瀏覽器空檔執行，降低動態頁面上全文件掃描的干擾
+  function scheduleRun() {
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(() => run(), { timeout: 500 });
+    else run();
+  }
+
   const observer = new MutationObserver(() => {
     if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(run, 300);
+    timeout = setTimeout(scheduleRun, 300);
   });
   observer.observe(document.body, { childList: true, subtree: true });
 })();

@@ -26,6 +26,7 @@
         "https://*.kobo.com/tw/*"
       ],
       "js": [
+        "teh-constants.js",
         "sites.js",
         "teh-chip-input.js",
         "teh-storage.js",

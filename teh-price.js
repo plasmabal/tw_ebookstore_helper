@@ -12,7 +12,7 @@ window.TEH = window.TEH || {};
         if (!info.container) return;
         if (info.container.querySelector('.teh-price-helper-container, .teh-best-price-hint')) return;
 
-        const { options, bestOption } = TEH_computePriceOptions(info.price, info.isTokenApplicable);
+        const { options, bestOption } = window.TEH.logic.computePriceOptions(info.price, info.isTokenApplicable);
 
         // 列表卡片、待購清單（空間受限）：顯示純文字提示
         if (info.container.closest('.listItem-box') || info.container.closest('.cart-list-item')) {
@@ -29,7 +29,11 @@ window.TEH = window.TEH || {};
 
         const button = document.createElement('button');
         button.className = 'teh-best-option-btn';
-        button.innerHTML = `${bestOption.label} <span class="teh-arrow">▼</span>`;
+        button.textContent = `${bestOption.label} `;
+        const arrow = document.createElement('span');
+        arrow.className = 'teh-arrow';
+        arrow.textContent = '▼';
+        button.appendChild(arrow);
 
         const dropdown = document.createElement('div');
         dropdown.className = 'teh-price-dropdown';

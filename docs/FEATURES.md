@@ -102,7 +102,7 @@
 - 浮窗包含：多行文字備註欄、tag chip 輸入框（支援 autocomplete）、儲存／取消按鈕
 - 若此 bookId 已有備註，預填現有內容
 - 「取消」：關閉浮窗，不儲存
-- 「儲存」：寫入 `chrome.storage.sync`（`wishlistRemarks`、`wishlistTags`），關閉浮窗
+- 「儲存」：寫入 `chrome.storage.sync`（`wishlistRemarks`、`wishlistTags`），**成功後**才關閉浮窗；寫入失敗（如超過單 key 8KB 配額）時顯示錯誤 toast（`.teh-toast`）、保留浮窗與輸入內容，且 cache 不更新
 
 **從已加入改成移除時**：
 - 點擊按鈕時若按鈕為 active（即移除書籍），**不清除**備註與標籤
@@ -146,7 +146,7 @@
 **編輯模式**（點擊容器後）：
 - 若容器已含 textarea，不重複進入編輯模式
 - 顯示 textarea（預填現有備註）、tag chip 輸入框
-- 「儲存」：寫入 storage，回到顯示模式
+- 「儲存」：寫入 storage，**成功後**回到顯示模式；失敗時顯示錯誤 toast、保留編輯模式與輸入內容
 - 「取消」：直接回到顯示模式，不更動資料
 
 **Chip input autocomplete 來源**：目前有書籍使用的 tag（`wishlistTagPool`）∪ `wishlistTagTemplates`（已儲存的常用 tag）去重合併後提供建議。
@@ -172,7 +172,8 @@
 - 掃描所有 `li.cart-list-item`，收集目前在清單中的 bookId 集合
 - 清除 `wishlistRemarks` 和 `wishlistTags` 中不在此集合的孤立資料
 - 每次 hash 切換至 `#wishlist` 只執行一次（`wishlistCleanupDone` 旗標控制）
-- **前提**：待購清單頁面一次載入所有條目（非動態分頁），cleanup 時 DOM 已完整
+- **防誤刪**：需**連續兩輪**觀察到相同的 bookId 集合才實際執行清理（`wishlistCleanupPendingIds` 快照比對；第一輪後排程 600ms 保底重跑，確保頁面靜止時仍有第二輪確認），避免頁面尚未完整渲染時把仍存在書籍的資料刪光
+- **防呆**：若掃描到的條目一個 bookId 都取不到（如站方 DOM 改版導致 selector 失效），一律跳過清理
 
 ---
 
@@ -188,7 +189,7 @@
 - **行內編輯**：點鉛筆按鈕進入編輯模式，可修改名稱、備註、標籤；「儲存」或「取消」
 - **刪除**：點垃圾桶按鈕直接刪除（無確認對話框）
 
-重複名稱不允許新增。
+重複名稱不允許新增。所有寫入操作（新增、編輯、刪除、標籤重命名／刪除）失敗時（如超過 sync 配額）顯示 alert 錯誤訊息，不靜默失敗。
 
 ### 4.2 標籤管理（名單標籤）
 
@@ -219,7 +220,7 @@
 
 **匯入**：
 - 接受 JSON 檔（點擊選取或拖曳至 drop zone）
-- 驗證格式：各清單須為物件陣列且含 `name`，remarks/tags 須為 object 非 array，`wishlistTagTemplates` 須為 array
+- 驗證格式：各清單須為物件陣列且 `name` 為字串、`note` 為字串（選填）、`tags` 為字串陣列（選填）；`wishlistRemarks` 須為 object 且 value 皆為字串；`wishlistTags` 須為 object 且 value 皆為字串陣列；`wishlistTagTemplates` 須為字串陣列。任何值型別不符即拒絕匯入（防止壞資料寫入 sync 後癱瘓 content script）
 - 若不含任何有效 key，顯示錯誤
 - 驗證通過後顯示 confirm 對話框，確認才覆蓋現有資料
 - 匯入後自動執行 `runMigrations()` 確保結構相容，並顯示成功 alert

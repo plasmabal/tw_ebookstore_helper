@@ -1,8 +1,20 @@
 // --- Constants & Shared State ---
 
-const LIST_KEYS = ['publisherBlacklist', 'authorBlacklist', 'publisherWhitelist', 'authorWhitelist'];
+// key 清單定義於 teh-constants.js（單一來源，與 content scripts 共用）
+const LIST_KEYS = window.TEH.LIST_KEYS;
 const SCHEMA_VERSIONS = ['0.1.0', '0.2.0'];
 const CURRENT_SCHEMA = '0.2.0';
+
+// 統一的 sync 寫入：失敗（如超過空間上限）時提示使用者，不再靜默吞掉
+function saveToSync(updates, onSuccess) {
+  chrome.storage.sync.set(updates, () => {
+    if (chrome.runtime?.lastError) {
+      alert(`❌ 儲存失敗：${chrome.runtime.lastError.message}`);
+      return;
+    }
+    if (onSuccess) onSuccess();
+  });
+}
 
 // Shared tag pool - mutated in loadSettings(), read by createTagChipInput()
 let listTagPool = [];
@@ -15,7 +27,7 @@ const configSections = document.querySelectorAll('.config-section');
 // --- Tab Switching Logic ---
 
 navItems.forEach(item => {
-  item.onclick = () => {
+  item.addEventListener('click', () => {
     const targetId = item.getAttribute('data-target');
 
     navItems.forEach(nav => nav.classList.remove('active'));
@@ -29,7 +41,7 @@ navItems.forEach(item => {
     if (targetId === 'section-list-tags') loadListTagManager();
     if (targetId === 'section-wishlist-tags') loadWishlistTagManager();
     if (targetId === 'section-readmoo') loadReadmooSettings();
-  };
+  });
 });
 
 // --- Migration System ---
@@ -49,47 +61,34 @@ const MIGRATIONS = {
   })
 };
 
-function runMigrations() {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['schemaVersion'], (res) => {
-      const current = res.schemaVersion || '0.1.0';
-      const currentIdx = SCHEMA_VERSIONS.indexOf(current);
-      // If version is unknown (future), don't run any migrations
-      const startIdx = currentIdx === -1 ? SCHEMA_VERSIONS.length : currentIdx + 1;
-      const pending = SCHEMA_VERSIONS.slice(startIdx);
-
-      const runNext = (i) => {
-        if (i >= pending.length) {
-          chrome.storage.sync.set({ schemaVersion: CURRENT_SCHEMA }, resolve);
-          return;
-        }
-        const fn = MIGRATIONS[pending[i]];
-        if (!fn) { runNext(i + 1); return; }
-        fn().then(() => runNext(i + 1));
-      };
-      runNext(0);
-    });
-  });
+async function runMigrations() {
+  const res = await chrome.storage.sync.get(['schemaVersion']);
+  const current = res.schemaVersion || '0.1.0';
+  const currentIdx = SCHEMA_VERSIONS.indexOf(current);
+  // If version is unknown (future), don't run any migrations
+  const startIdx = currentIdx === -1 ? SCHEMA_VERSIONS.length : currentIdx + 1;
+  for (const version of SCHEMA_VERSIONS.slice(startIdx)) {
+    const fn = MIGRATIONS[version];
+    if (fn) await fn();
+  }
+  await chrome.storage.sync.set({ schemaVersion: CURRENT_SCHEMA });
 }
 
-function migrateLocalToSync() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get(['localToSyncMigrated'], (check) => {
-      if (check.localToSyncMigrated) { resolve(); return; }
-      // ⚠️ 須與 teh-storage.js 的 MIGRATE_KEYS 保持完整聯集一致
-      const migrateKeys = [...LIST_KEYS, 'wishlistRemarks', 'wishlistTags', 'wishlistTagTemplates', 'schemaVersion', 'readmooAutoClosePreviewDialog'];
-      chrome.storage.local.get(migrateKeys, (localData) => {
-        const data = {};
-        migrateKeys.forEach(k => { if (localData[k] !== undefined) data[k] = localData[k]; });
-        const finish = () => chrome.storage.local.set({ localToSyncMigrated: true }, resolve);
-        if (!Object.keys(data).length) { finish(); return; }
-        chrome.storage.sync.set(data, () => {
-          if (chrome.runtime.lastError) console.warn('TEH: migration to sync failed', chrome.runtime.lastError);
-          finish();
-        });
-      });
-    });
-  });
+async function migrateLocalToSync() {
+  const check = await chrome.storage.local.get(['localToSyncMigrated']);
+  if (check.localToSyncMigrated) return;
+  const migrateKeys = window.TEH.MIGRATE_KEYS;
+  const localData = await chrome.storage.local.get(migrateKeys);
+  const data = {};
+  migrateKeys.forEach(k => { if (localData[k] !== undefined) data[k] = localData[k]; });
+  if (Object.keys(data).length) {
+    try {
+      await chrome.storage.sync.set(data);
+    } catch (e) {
+      console.warn('TEH: migration to sync failed', e);
+    }
+  }
+  await chrome.storage.local.set({ localToSyncMigrated: true });
 }
 
 // --- Settings Loading ---
@@ -190,19 +189,19 @@ function buildDisplayRow(item, index, items, storageKey, li) {
   editBtn.className = 'edit-btn';
   editBtn.title = '編輯';
   editBtn.textContent = '✏️';
-  editBtn.onclick = () => {
+  editBtn.addEventListener('click', () => {
     li.innerHTML = '';
     li.appendChild(buildEditRow(item, index, items, storageKey, li));
-  };
+  });
 
   const delBtn = document.createElement('button');
   delBtn.className = 'delete-btn';
   delBtn.title = '刪除';
   delBtn.textContent = '🗑️';
-  delBtn.onclick = () => {
+  delBtn.addEventListener('click', () => {
     items.splice(index, 1);
-    chrome.storage.sync.set({ [storageKey]: items }, loadSettings);
-  };
+    saveToSync({ [storageKey]: items }, loadSettings);
+  });
 
   actionsDiv.appendChild(editBtn);
   actionsDiv.appendChild(delBtn);
@@ -236,20 +235,20 @@ function buildEditRow(item, index, items, storageKey, li) {
   const saveBtn = document.createElement('button');
   saveBtn.className = 'btn-save-edit';
   saveBtn.textContent = '儲存';
-  saveBtn.onclick = () => {
+  saveBtn.addEventListener('click', () => {
     const newName = nameInput.value.trim();
     if (!newName) return;
     items[index] = { name: newName, note: noteTextarea.value.trim(), tags: tagInput.getTags() };
-    chrome.storage.sync.set({ [storageKey]: items }, loadSettings);
-  };
+    saveToSync({ [storageKey]: items }, loadSettings);
+  });
 
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'btn-cancel-edit';
   cancelBtn.textContent = '取消';
-  cancelBtn.onclick = () => {
+  cancelBtn.addEventListener('click', () => {
     li.innerHTML = '';
     li.appendChild(buildDisplayRow(item, index, items, storageKey, li));
-  };
+  });
 
   actionsDiv.appendChild(saveBtn);
   actionsDiv.appendChild(cancelBtn);
@@ -274,9 +273,11 @@ function setupSection(inputId, noteId, buttonId, storageKey) {
   button.before(tagInput);
 
   const doAdd = () => addItem(input, note, tagInput, storageKey);
-  button.onclick = doAdd;
-  input.addEventListener('keypress', (e) => { if (e.key === 'Enter') doAdd(); });
-  note.addEventListener('keypress',  (e) => { if (e.key === 'Enter') doAdd(); });
+  // keydown + isComposing：避免中文輸入法 Enter 選字時提前送出
+  const onEnter = (e) => { if (e.key === 'Enter' && !e.isComposing) doAdd(); };
+  button.addEventListener('click', doAdd);
+  input.addEventListener('keydown', onEnter);
+  note.addEventListener('keydown',  onEnter);
 }
 
 function addItem(input, note, tagInput, storageKey) {
@@ -289,7 +290,7 @@ function addItem(input, note, tagInput, storageKey) {
     const list = res[storageKey] || [];
     if (!list.some(i => i.name === name)) {
       list.push({ name, note: noteVal, tags });
-      chrome.storage.sync.set({ [storageKey]: list }, () => {
+      saveToSync({ [storageKey]: list }, () => {
         input.value = '';
         note.value  = '';
         tagInput.reset();
@@ -397,12 +398,12 @@ function buildTagManagerItem({ tag, countLabel, onRename, onDelete, confirmMessa
   const renameBtn = document.createElement('button');
   renameBtn.className = 'btn-tag-rename';
   renameBtn.textContent = '重命名';
-  renameBtn.onclick = () => startInlineRename(li, tag, nameSpan, renameBtn, deleteBtn, onRename);
+  renameBtn.addEventListener('click', () => startInlineRename(li, tag, nameSpan, renameBtn, deleteBtn, onRename));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn-tag-delete';
   deleteBtn.textContent = '刪除';
-  deleteBtn.onclick = () => { if (confirm(confirmMessage)) onDelete(tag); };
+  deleteBtn.addEventListener('click', () => { if (confirm(confirmMessage)) onDelete(tag); });
 
   li.appendChild(nameSpan);
   li.appendChild(countSpan);
@@ -477,9 +478,10 @@ function startInlineRename(li, oldTag, nameSpan, renameBtn, deleteBtn, onRename)
     deleteBtn.style.display = '';
   };
 
-  confirmBtn.onclick = doRename;
-  cancelBtn.onclick  = restoreDisplay;
+  confirmBtn.addEventListener('click', doRename);
+  cancelBtn.addEventListener('click', restoreDisplay);
   input.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
     if (e.key === 'Enter')  doRename();
     if (e.key === 'Escape') restoreDisplay();
   });
@@ -502,7 +504,7 @@ function renameListTag(oldTag, newTag) {
         tags: [...new Set((item.tags || []).map(t => t === oldTag ? newTag : t))]
       }));
     });
-    chrome.storage.sync.set(updates, () => {
+    saveToSync(updates, () => {
       loadSettings();
       loadListTagManager();
     });
@@ -518,7 +520,7 @@ function deleteListTag(tag) {
         tags: (item.tags || []).filter(t => t !== tag)
       }));
     });
-    chrome.storage.sync.set(updates, () => {
+    saveToSync(updates, () => {
       loadSettings();
       loadListTagManager();
     });
@@ -534,7 +536,7 @@ function renameWishlistTag(oldTag, newTag) {
     const updatedTemplates = [...new Set(
       (res.wishlistTagTemplates || []).map(t => t === oldTag ? newTag : t)
     )];
-    chrome.storage.sync.set({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
+    saveToSync({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
   });
 }
 
@@ -546,7 +548,7 @@ function deleteWishlistTag(tag) {
       if (filtered.length) updatedTags[bookId] = filtered;
     });
     const updatedTemplates = (res.wishlistTagTemplates || []).filter(t => t !== tag);
-    chrome.storage.sync.set({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
+    saveToSync({ wishlistTags: updatedTags, wishlistTagTemplates: updatedTemplates }, loadWishlistTagManager);
   });
 }
 
@@ -560,7 +562,13 @@ function loadReadmooSettings() {
 }
 
 document.getElementById('toggle-auto-close-preview').addEventListener('change', (e) => {
-  chrome.storage.sync.set({ readmooAutoClosePreviewDialog: e.target.checked });
+  const checked = e.target.checked;
+  chrome.storage.sync.set({ readmooAutoClosePreviewDialog: checked }, () => {
+    if (chrome.runtime?.lastError) {
+      alert(`❌ 儲存失敗：${chrome.runtime.lastError.message}`);
+      e.target.checked = !checked;
+    }
+  });
 });
 
 // --- Backup and Restore ---
@@ -595,11 +603,17 @@ function handleImport(file) {
     try {
       const data = JSON.parse(e.target.result);
 
+      // 值的型別也要驗證：壞資料一旦寫入 sync，會讓所有支援站台的
+      // content script 在讀取時出錯而整組失效
+      const isStringArray = (arr) => Array.isArray(arr) && arr.every(t => typeof t === 'string');
+
       const validateList = (list) => {
         if (!list) return true;
         if (!Array.isArray(list)) return false;
-        return list.every(item => item && typeof item === 'object' && 'name' in item &&
-          (item.tags === undefined || Array.isArray(item.tags)));
+        return list.every(item => item && typeof item === 'object' &&
+          typeof item.name === 'string' &&
+          (item.note === undefined || typeof item.note === 'string') &&
+          (item.tags === undefined || isStringArray(item.tags)));
       };
 
       for (const key of LIST_KEYS) {
@@ -609,14 +623,20 @@ function handleImport(file) {
         }
       }
 
-      if (data.wishlistRemarks !== undefined &&
-          (typeof data.wishlistRemarks !== 'object' || Array.isArray(data.wishlistRemarks))) {
+      if (data.wishlistRemarks !== undefined && (
+          typeof data.wishlistRemarks !== 'object' || data.wishlistRemarks === null ||
+          Array.isArray(data.wishlistRemarks) ||
+          !Object.values(data.wishlistRemarks).every(v => typeof v === 'string')
+      )) {
         alert('❌ 錯誤：備份檔案結構損壞 (wishlistRemarks 格式不符)。');
         return;
       }
 
-      if (data.wishlistTags !== undefined &&
-          (typeof data.wishlistTags !== 'object' || Array.isArray(data.wishlistTags))) {
+      if (data.wishlistTags !== undefined && (
+          typeof data.wishlistTags !== 'object' || data.wishlistTags === null ||
+          Array.isArray(data.wishlistTags) ||
+          !Object.values(data.wishlistTags).every(isStringArray)
+      )) {
         alert('❌ 錯誤：備份檔案結構損壞 (wishlistTags 格式不符)。');
         return;
       }
@@ -640,7 +660,7 @@ function handleImport(file) {
         const safeData = {};
         keysToRestore.forEach(k => { if (k in data) safeData[k] = data[k]; });
         chrome.storage.sync.set(safeData, () => {
-          if (chrome.runtime.lastError) {
+          if (chrome.runtime?.lastError) {
             alert('❌ 錯誤：資料量超過同步儲存空間限制（100 KB），無法還原。請減少清單條目後再試。');
             return;
           }
@@ -663,15 +683,15 @@ function handleImport(file) {
 
 // --- Bind System Handlers ---
 
-document.getElementById('export-btn').onclick = exportData;
+document.getElementById('export-btn').addEventListener('click', exportData);
 const importBtn  = document.getElementById('import-btn');
 const importFile = document.getElementById('import-file');
 
-importBtn.onclick = () => importFile.click();
-importFile.onchange = (e) => {
+importBtn.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', (e) => {
   handleImport(e.target.files[0]);
   e.target.value = '';
-};
+});
 
 // --- Drag and Drop Support ---
 

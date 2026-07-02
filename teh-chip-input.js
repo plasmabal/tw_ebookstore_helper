@@ -112,6 +112,8 @@ window.TEH.createChipInput = function({
   textInput.addEventListener('input', () => showDropdown(textInput.value));
   textInput.addEventListener('blur', hideDropdown);
   textInput.addEventListener('keydown', (e) => {
+    // IME 組字中（注音選字等）不處理，避免 Enter 選字時把組字半成品加成 tag
+    if (e.isComposing || e.keyCode === 229) return;
     const isOpen = dropdown.style.display !== 'none';
     const items  = dropdown.querySelectorAll('li');
 

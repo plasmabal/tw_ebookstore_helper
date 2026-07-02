@@ -37,6 +37,7 @@ async function waitForClass(page, selector, className) {
  */
 async function injectContentScripts(page) {
   const files = [
+    '../teh-constants.js',
     '../teh-chip-input.js',
     '../teh-storage.js',
     '../teh-blacklist.js',

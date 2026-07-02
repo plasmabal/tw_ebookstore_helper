@@ -673,3 +673,91 @@ describe('Management Page - 待購清單 Template Tags', () => {
     expect(storage.wishlistTagTemplates).not.toContain('奇幻');
   });
 });
+
+// ─── 匯入型別驗證與輸入法（IME）防護 ─────────────────────────────────────────
+describe('Management Page - 匯入型別驗證與 IME', () => {
+  let EXTENSION_ID;
+  beforeAll(() => { EXTENSION_ID = global.EXTENSION_ID; });
+  let page;
+
+  beforeEach(async () => {
+    page = await global.browser.newPage();
+    await page.goto(`chrome-extension://${EXTENSION_ID}/management.html`, { waitUntil: 'networkidle0' });
+  });
+
+  afterEach(async () => {
+    if (page && !page.isClosed()) await page.close();
+  });
+
+  async function importAndGetAlert(badData) {
+    return await new Promise(resolve => {
+      page.once('dialog', async dialog => {
+        resolve(dialog.message());
+        await dialog.accept();
+      });
+      page.evaluate((dataStr) => {
+        const file = new File([dataStr], 'bad.json', { type: 'application/json' });
+        handleImport(file);
+      }, JSON.stringify(badData));
+      setTimeout(() => resolve(null), 2000);
+    });
+  }
+
+  test('匯入 name 非字串的名單應被拒絕', async () => {
+    const msg = await importAndGetAlert({ publisherBlacklist: [{ name: 123 }] });
+    expect(msg).not.toBeNull();
+    expect(msg).toContain('格式不符');
+  });
+
+  test('匯入 tags 含非字串的名單應被拒絕', async () => {
+    const msg = await importAndGetAlert({ authorBlacklist: [{ name: '作者', tags: ['ok', 42] }] });
+    expect(msg).not.toBeNull();
+    expect(msg).toContain('格式不符');
+  });
+
+  test('匯入 wishlistRemarks value 非字串應被拒絕', async () => {
+    const msg = await importAndGetAlert({ wishlistRemarks: { '12345': 999 } });
+    expect(msg).not.toBeNull();
+    expect(msg).toContain('wishlistRemarks');
+  });
+
+  test('匯入 wishlistTags value 含非字串應被拒絕', async () => {
+    const msg = await importAndGetAlert({ wishlistTags: { '12345': ['ok', null] } });
+    expect(msg).not.toBeNull();
+    expect(msg).toContain('wishlistTags');
+  });
+
+  test('IME 組字中的 Enter 不應把組字內容加成 tag，組字結束後 Enter 正常', async () => {
+    // section-pub-black 是預設顯示的 section
+    const chipCountDuringComposition = await page.evaluate(() => {
+      const input = document.querySelector('#section-pub-black .tag-text-input');
+      input.value = 'ㄅㄧㄠ';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }));
+      return document.querySelectorAll('#section-pub-black .tag-chip').length;
+    });
+    expect(chipCountDuringComposition).toBe(0);
+
+    const chipCountAfterComposition = await page.evaluate(() => {
+      const input = document.querySelector('#section-pub-black .tag-text-input');
+      input.value = '標籤';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: false, bubbles: true }));
+      return document.querySelectorAll('#section-pub-black .tag-chip').length;
+    });
+    expect(chipCountAfterComposition).toBe(1);
+  });
+
+  test('IME 組字中的 Enter 不應觸發名單新增', async () => {
+    await page.evaluate(() => {
+      const input = document.querySelector('#pub-input');
+      input.value = 'IME組字測試出版社';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }));
+    });
+    await new Promise(r => setTimeout(r, 300));
+
+    const storage = await page.evaluate(() =>
+      new Promise(resolve => chrome.storage.sync.get(['publisherBlacklist'], resolve))
+    );
+    const names = (storage.publisherBlacklist || []).map(i => i.name);
+    expect(names).not.toContain('IME組字測試出版社');
+  });
+});

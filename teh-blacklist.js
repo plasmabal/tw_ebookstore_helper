@@ -29,10 +29,10 @@ window.TEH = window.TEH || {};
 
       if (targets.global) {
         if (targets.global.publishers) {
-          targets.global.publishers.forEach(el => applyStyles(el, TEH_extractDirectText(el), 'publisher'));
+          targets.global.publishers.forEach(el => applyStyles(el, window.TEH.logic.extractDirectText(el), 'publisher'));
         }
         if (targets.global.authors) {
-          targets.global.authors.forEach(el => applyStyles(el, TEH_extractDirectText(el), 'author'));
+          targets.global.authors.forEach(el => applyStyles(el, window.TEH.logic.extractDirectText(el), 'author'));
         }
       }
 

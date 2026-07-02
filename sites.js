@@ -135,7 +135,7 @@
     },
     {
       name: "Books.com.tw",
-      detect: (host) => host.includes("books.com.tw"),
+      detect: (host) => host === "books.com.tw" || host.endsWith(".books.com.tw"),
       getBlacklistTargets: (doc) => {
         const path = window.location.pathname;
 
@@ -214,5 +214,7 @@
     return Sites.find(s => s.detect(host));
   }
 
-  window.TEH = { findSite };
+  // 與其他模組一致採合併寫法，避免依賴 manifest 載入順序
+  window.TEH = window.TEH || {};
+  window.TEH.findSite = findSite;
 })();

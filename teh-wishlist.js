@@ -82,8 +82,8 @@ window.TEH = window.TEH || {};
     saveBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      window.TEH.storage.saveWishlistData(bookId, textarea.value, tagInput.getTags());
-      popover.remove();
+      // 儲存成功才關閉 popover；失敗時保留輸入內容並顯示錯誤提示
+      window.TEH.storage.saveWishlistData(bookId, textarea.value, tagInput.getTags(), () => popover.remove());
     });
 
     footer.appendChild(cancelBtn);
@@ -215,9 +215,10 @@ window.TEH = window.TEH || {};
     const items = document.querySelectorAll('li.cart-list-item');
 
     // Auto-cleanup: remove stored data for books no longer in the wishlist (once per hash change).
-    // The wishlist page loads all items at once, so currentIds is complete when this runs.
+    // 防誤刪：需「連續兩輪」觀察到相同的 bookId 集合才執行，避免頁面尚未完整
+    // 渲染（lazy-load、慢網路撞上 debounce）時把仍存在書籍的備註刪光；
+    // 若一個 bookId 都抓不到（多半是站方改版），一律不清理。
     if (items.length > 0 && !state.wishlistCleanupDone) {
-      state.wishlistCleanupDone = true;
       const currentIds = new Set();
       items.forEach(item => {
         const coverLink = item.querySelector('.item-cover-link');
@@ -226,42 +227,67 @@ window.TEH = window.TEH || {};
           if (m) currentIds.add(m[1]);
         }
       });
+      const prev = state.wishlistCleanupPendingIds;
+      const sameAsPrev = prev && prev.size === currentIds.size &&
+        [...currentIds].every(id => prev.has(id));
 
-      const update = {};
-      let changed = false;
-
-      const newRemarks = { ...state.cachedLists.wishlistRemarks };
-      Object.keys(newRemarks).forEach(id => {
-        if (!currentIds.has(id)) { delete newRemarks[id]; changed = true; }
-      });
-      if (changed) update.wishlistRemarks = newRemarks;
-
-      const newTags = { ...state.cachedLists.wishlistTags };
-      let tagsChanged = false;
-      const removedBookTags = [];
-      Object.keys(newTags).forEach(id => {
-        if (!currentIds.has(id)) {
-          (newTags[id] || []).forEach(t => removedBookTags.push(t));
-          delete newTags[id];
-          tagsChanged = true;
-        }
-      });
-      if (tagsChanged) { update.wishlistTags = newTags; changed = true; }
-
-      // Promote orphaned tags from removed books to wishlistTagTemplates
-      if (removedBookTags.length > 0) {
-        const result = TEH_promoteOrphanTags(removedBookTags, newTags, state.cachedLists.wishlistTagTemplates);
-        if (result.changed) {
-          update.wishlistTagTemplates = result.templates;
-          state.cachedLists.wishlistTagTemplates = result.templates;
-          changed = true;
-        }
+      if (currentIds.size === 0) {
+        // 站方 DOM 可能改版，跳過清理（仍繼續注入 UI）
+      } else if (!sameAsPrev) {
+        state.wishlistCleanupPendingIds = currentIds;
+        // 保證即使頁面之後不再有 DOM 變動，也會有第二輪確認
+        setTimeout(() => injectWishlistRemarks(), 600);
+      } else {
+        state.wishlistCleanupDone = true;
+        state.wishlistCleanupPendingIds = null;
+        cleanupRemovedBooks(currentIds);
       }
-
-      if (changed) chrome.storage.sync.set(update);
     }
 
-    // Inject remark + tag UI into each wishlist item
+    injectWishlistUI(items, refreshExisting);
+  }
+
+  function cleanupRemovedBooks(currentIds) {
+    const update = {};
+    let changed = false;
+
+    const newRemarks = { ...state.cachedLists.wishlistRemarks };
+    Object.keys(newRemarks).forEach(id => {
+      if (!currentIds.has(id)) { delete newRemarks[id]; changed = true; }
+    });
+    if (changed) update.wishlistRemarks = newRemarks;
+
+    const newTags = { ...state.cachedLists.wishlistTags };
+    let tagsChanged = false;
+    const removedBookTags = [];
+    Object.keys(newTags).forEach(id => {
+      if (!currentIds.has(id)) {
+        (newTags[id] || []).forEach(t => removedBookTags.push(t));
+        delete newTags[id];
+        tagsChanged = true;
+      }
+    });
+    if (tagsChanged) { update.wishlistTags = newTags; changed = true; }
+
+    // Promote orphaned tags from removed books to wishlistTagTemplates
+    if (removedBookTags.length > 0) {
+      const result = window.TEH.logic.promoteOrphanTags(removedBookTags, newTags, state.cachedLists.wishlistTagTemplates);
+      if (result.changed) {
+        update.wishlistTagTemplates = result.templates;
+        state.cachedLists.wishlistTagTemplates = result.templates;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      chrome.storage.sync.set(update, () => {
+        if (chrome.runtime?.lastError) console.warn('[TEH] wishlist cleanup failed:', chrome.runtime.lastError);
+      });
+    }
+  }
+
+  // Inject remark + tag UI into each wishlist item
+  function injectWishlistUI(items, refreshExisting) {
     items.forEach(item => {
       const existingContainer = item.querySelector('.teh-wishlist-remark-container');
       if (existingContainer) {
