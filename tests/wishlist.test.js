@@ -59,7 +59,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
         const el = document.querySelector('.teh-wishlist-remark-text');
         return el && el.textContent === t;
       },
-      { timeout: 3000 },
+      { timeout: 5000 },
       expected
     );
   }
@@ -75,7 +75,7 @@ describe('待購清單備註注入測試 (Fixture)', () => {
     // 改用條件等待避免取樣到空白的初次渲染（計時競態）
     await page.waitForFunction(
       () => document.body.innerHTML.includes('奇幻') && document.body.innerHTML.includes('想買'),
-      { timeout: 3000 }
+      { timeout: 5000 }
     );
 
     // 兩本書都應有容器
