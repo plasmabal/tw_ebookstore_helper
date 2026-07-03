@@ -17,6 +17,8 @@ globs: *
 
 3. **更新 `package.json`**：將 `"version"` 欄位改為新版號，與 `manifest.json` 保持一致。
 
+3.1 **更新 `management.html`**：將 `<p class="version">vX.X.X</p>`（sidebar-footer 內）改為新版號，與 `manifest.json` 保持一致。此欄位過去曾長期未同步更新（卡在 v0.2.0），故列為固定步驟避免再次遺漏。
+
 4. **更新 `CHANGES.md`**：
     * 將 `## [Upcoming Version]` 改為 `## [X.X.X] - YYYY-MM-DD`（使用今天的日期）。
     * 在標題說明文字（`All notable changes...`）之後、新版號標題之前，插入空白佔位區供下一個版本使用：
@@ -32,7 +34,7 @@ globs: *
 
 5. **Commit 版本升版**：
     ```bash
-    git add manifest.json package.json CHANGES.md
+    git add manifest.json package.json management.html CHANGES.md
     git commit -m "chore: bump version to X.X.X"
     ```
 

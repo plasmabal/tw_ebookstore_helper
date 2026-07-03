@@ -26,6 +26,8 @@ git log --oneline -5
 - `manifest.json` → 目前版號
 - `CHANGES.md` → `[Upcoming Version]` 區段內容
 
+**檢查 `management.html` 版號是否同步**：`grep '<p class="version">' management.html`，確認其版號與 `manifest.json` 一致。此欄位過去曾長期未同步更新（卡在 v0.2.0 長達數個版本），故每次 release 都需檢查。
+
 若 `[Upcoming Version]` 區段沒有任何實質內容（Added / Changed / Fixed 都空），詢問使用者是否確定要繼續發布。
 
 ### Step 2 — 確認新版號
@@ -38,7 +40,7 @@ git log --oneline -5
 
 ### Step 3 — 更新版號與 CHANGES.md
 
-同步更新三個檔案：
+同步更新四個檔案：
 
 **manifest.json**：
 ```json
@@ -49,6 +51,8 @@ git log --oneline -5
 ```json
 "version": "X.Y.Z"
 ```
+
+**management.html**：將 sidebar-footer 內的 `<p class="version">vX.Y.Z</p>` 改為新版號。
 
 **CHANGES.md**：
 1. 將 `## [Upcoming Version]` 替換為 `## [X.Y.Z] - TODAY`
@@ -76,7 +80,7 @@ npm run build
 
 Stage 以下檔案：
 ```bash
-git add manifest.json package.json CHANGES.md
+git add manifest.json package.json management.html CHANGES.md
 ```
 
 Commit message 固定格式（`MODEL_NAME` 替換為執行本 skill 時實際使用的 model，例如 `Claude Sonnet 4.6`）：
